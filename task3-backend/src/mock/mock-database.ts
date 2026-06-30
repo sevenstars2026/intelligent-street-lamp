@@ -255,6 +255,76 @@ export class MockDatabase {
     return true;
   }
 
+  // ===== 光照数据管理 =====
+
+  private static lightData: Array<{
+    id: number;
+    deviceId: string;
+    lightIntensity: number;
+    timestamp: Date;
+  }> = [];
+  private static lightDataIdCounter = 1;
+
+  private static aggregatedData: Array<{
+    id: number;
+    deviceId: string;
+    timeWindow: Date;
+    avgLightIntensity: number;
+    maxLightIntensity: number;
+    minLightIntensity: number;
+    sampleCount: number;
+  }> = [];
+  private static aggregatedDataIdCounter = 1;
+
+  static addLightData(data: {
+    deviceId: string;
+    lightIntensity: number;
+    timestamp: Date;
+  }) {
+    const record = {
+      ...data,
+      id: this.lightDataIdCounter++
+    };
+    this.lightData.push(record);
+    return record;
+  }
+
+  static getLightData(deviceId: string, startTime: Date, endTime: Date) {
+    return this.lightData.filter(d =>
+      d.deviceId === deviceId &&
+      d.timestamp >= startTime &&
+      d.timestamp <= endTime
+    ).sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+  }
+
+  static saveAggregatedData(data: {
+    deviceId: string;
+    timeWindow: Date;
+    avgLightIntensity: number;
+    maxLightIntensity: number;
+    minLightIntensity: number;
+    sampleCount: number;
+  }) {
+    const record = {
+      ...data,
+      id: this.aggregatedDataIdCounter++
+    };
+    this.aggregatedData.push(record);
+    return record;
+  }
+
+  static deleteOldLightData(cutoffDate: Date): number {
+    const initialLength = this.lightData.length;
+    this.lightData = this.lightData.filter(d => d.timestamp >= cutoffDate);
+    return initialLength - this.lightData.length;
+  }
+
+  static deleteOldAggregatedData(cutoffDate: Date): number {
+    const initialLength = this.aggregatedData.length;
+    this.aggregatedData = this.aggregatedData.filter(d => d.timeWindow >= cutoffDate);
+    return initialLength - this.aggregatedData.length;
+  }
+
   // ===== 工具方法 =====
 
   static reset() {
@@ -262,7 +332,11 @@ export class MockDatabase {
     this.thresholds.clear();
     this.controlLogs = [];
     this.alarms = [];
+    this.lightData = [];
+    this.aggregatedData = [];
     this.logIdCounter = 1;
     this.alarmIdCounter = 1;
+    this.lightDataIdCounter = 1;
+    this.aggregatedDataIdCounter = 1;
   }
 }
