@@ -74,10 +74,12 @@ export class DataStatisticsService {
 
     for (const [timeKey, records] of Object.entries(groups)) {
       const aggregated = DataAggregationAlgorithm.aggregate(records);
-      aggregatedResults.push({
-        ...aggregated,
-        timeWindow: new Date(timeKey)
-      });
+      if (aggregated) {
+        aggregatedResults.push({
+          ...aggregated,
+          timeWindow: new Date(timeKey)
+        });
+      }
     }
 
     return aggregatedResults;
@@ -162,9 +164,11 @@ export class DataStatisticsService {
 
     if (lightData.length > 0) {
       const aggregated = DataAggregationAlgorithm.aggregate(lightData);
-      avgLight = aggregated.avgLightIntensity;
-      maxLight = aggregated.maxLightIntensity;
-      minLight = aggregated.minLightIntensity;
+      if (aggregated) {
+        avgLight = aggregated.avgLightIntensity;
+        maxLight = aggregated.maxLightIntensity;
+        minLight = aggregated.minLightIntensity;
+      }
     }
 
     // 获取告警数据
@@ -233,17 +237,19 @@ export class DataStatisticsService {
       if (rawData.length > 0) {
         const aggregated = DataAggregationAlgorithm.aggregate(rawData);
 
-        // 保存聚合结果到数据库
-        MockDatabase.saveAggregatedData({
-          deviceId: device.id,
-          timeWindow: startTime,
-          avgLightIntensity: aggregated.avgLightIntensity,
-          maxLightIntensity: aggregated.maxLightIntensity,
-          minLightIntensity: aggregated.minLightIntensity,
-          sampleCount: aggregated.sampleCount
-        });
+        if (aggregated) {
+          // 保存聚合结果到数据库
+          MockDatabase.saveAggregatedData({
+            deviceId: device.id,
+            timeWindow: startTime,
+            avgLightIntensity: aggregated.avgLightIntensity,
+            maxLightIntensity: aggregated.maxLightIntensity,
+            minLightIntensity: aggregated.minLightIntensity,
+            sampleCount: aggregated.sampleCount
+          });
 
-        console.log(`[DataStatistics] Aggregated ${rawData.length} records for ${device.id}`);
+          console.log(`[DataStatistics] Aggregated ${rawData.length} records for ${device.id}`);
+        }
       }
     }
 

@@ -23,7 +23,7 @@ export interface ControlLog {
   id: number;
   deviceId: string;
   command: 'on' | 'off';
-  status: 'success' | 'failed';
+  status: 'success' | 'failed' | 'timeout';
   operatorId: number;
   operatorName: string;
   requestTime: Date;
@@ -181,7 +181,7 @@ export class MockDatabase {
 
   static updateControlLogResult(
     logId: number,
-    status: 'success' | 'failed',
+    status: 'success' | 'failed' | 'timeout',
     resultMessage: string
   ): boolean {
     const log = this.controlLogs.find(l => l.id === logId);

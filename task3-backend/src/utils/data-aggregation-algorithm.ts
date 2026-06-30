@@ -13,6 +13,7 @@ export interface AggregatedData {
   maxLightIntensity: number;
   minLightIntensity: number;
   sampleCount: number;
+  timeWindow?: Date;  // 可选字段，用于聚合数据
 }
 
 export class DataAggregationAlgorithm {
