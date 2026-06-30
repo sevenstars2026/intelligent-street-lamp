@@ -2,17 +2,20 @@
 
 ## 📋 文档信息
 
-- **版本：** v1.0
+- **版本：** v2.0
 - **更新时间：** 2026-06-30
 - **服务名称：** 智慧路灯业务逻辑
-- **Base URL：** `http://api.example.com/api` (待确认)
+- **Base URL：** `http://localhost:3000/api`
 
 ---
 
 ## 📌 通用说明
 
 ### 1. 认证方式
-所有接口都需要在请求头中携带JWT token：
+
+**开发阶段（当前）：** Mock认证，所有请求自动通过，无需token
+
+**生产环境：** 需要在请求头中携带JWT token（等待任务2完成）
 ```
 Authorization: Bearer {token}
 ```
@@ -46,7 +49,7 @@ Authorization: Bearer {token}
 
 ### 1.1 控制单个路灯
 
-**接口路径：** `POST /devices/:deviceId/control`
+**接口路径：** `POST /api/devices/:deviceId/control`
 
 **功能描述：** 远程控制指定路灯的开关
 
@@ -109,8 +112,7 @@ Authorization: Bearer {token}
 
 **调用示例：**
 ```bash
-curl -X POST "http://api.example.com/api/devices/lamp_001/control" \
-  -H "Authorization: Bearer xxx" \
+curl -X POST "http://localhost:3000/api/devices/lamp_001/control" \
   -H "Content-Type: application/json" \
   -d '{"command": "on"}'
 ```
@@ -119,7 +121,7 @@ curl -X POST "http://api.example.com/api/devices/lamp_001/control" \
 
 ### 1.2 批量控制路灯
 
-**接口路径：** `POST /devices/batch-control`
+**接口路径：** `POST /api/devices/batch-control`
 
 **功能描述：** 同时控制多个路灯的开关
 
@@ -179,7 +181,7 @@ curl -X POST "http://api.example.com/api/devices/batch-control" \
 
 ### 2.1 获取设备阈值配置
 
-**接口路径：** `GET /devices/:deviceId/threshold`
+**接口路径：** `GET /api/devices/:deviceId/threshold`
 
 **功能描述：** 获取指定设备的光照阈值配置
 
@@ -219,7 +221,7 @@ curl -X POST "http://api.example.com/api/devices/batch-control" \
 
 ### 2.2 设置设备阈值配置
 
-**接口路径：** `POST /devices/:deviceId/threshold`
+**接口路径：** `POST /api/devices/:deviceId/threshold`
 
 **功能描述：** 设置指定设备的光照阈值
 
@@ -273,7 +275,7 @@ curl -X POST "http://api.example.com/api/devices/batch-control" \
 
 ### 3.1 切换设备控制模式
 
-**接口路径：** `PUT /devices/:deviceId/mode`
+**接口路径：** `PUT /api/devices/:deviceId/mode`
 
 **功能描述：** 切换设备的自动/手动控制模式
 
@@ -308,7 +310,7 @@ curl -X POST "http://api.example.com/api/devices/batch-control" \
 
 ### 3.2 获取设备控制模式
 
-**接口路径：** `GET /devices/:deviceId/mode`
+**接口路径：** `GET /api/devices/:deviceId/mode`
 
 **功能描述：** 获取设备当前的控制模式
 
@@ -333,7 +335,7 @@ curl -X POST "http://api.example.com/api/devices/batch-control" \
 
 ### 4.1 查询设备历史光照数据
 
-**接口路径：** `GET /devices/:deviceId/light-history`
+**接口路径：** `GET /api/devices/:deviceId/light-history`
 
 **功能描述：** 查询指定设备的历史光照强度数据
 
@@ -435,7 +437,7 @@ curl "http://api.example.com/api/devices/lamp_001/light-history?startTime=2026-0
 
 ### 4.2 查询控制操作历史
 
-**接口路径：** `GET /devices/:deviceId/control-logs`
+**接口路径：** `GET /api/devices/:deviceId/control-logs`
 
 **功能描述：** 查询设备的控制操作历史记录
 
@@ -500,7 +502,7 @@ curl "http://api.example.com/api/devices/lamp_001/light-history?startTime=2026-0
 
 ### 5.1 查询告警列表
 
-**接口路径：** `GET /alarms`
+**接口路径：** `GET /api/alarms`
 
 **功能描述：** 查询告警记录列表
 
@@ -573,7 +575,7 @@ curl "http://api.example.com/api/devices/lamp_001/light-history?startTime=2026-0
 
 ### 5.2 查询告警详情
 
-**接口路径：** `GET /alarms/:alarmId`
+**接口路径：** `GET /api/alarms/:alarmId`
 
 **功能描述：** 查询指定告警的详细信息
 
@@ -637,7 +639,7 @@ curl "http://api.example.com/api/devices/lamp_001/light-history?startTime=2026-0
 
 ### 5.3 标记告警已处理
 
-**接口路径：** `PUT /alarms/:alarmId/resolve`
+**接口路径：** `PUT /api/alarms/:alarmId/resolve`
 
 **功能描述：** 标记告警为已处理状态
 
@@ -676,7 +678,7 @@ curl "http://api.example.com/api/devices/lamp_001/light-history?startTime=2026-0
 
 ### 6.1 获取设备运行统计
 
-**接口路径：** `GET /devices/:deviceId/statistics`
+**接口路径：** `GET /api/devices/:deviceId/statistics`
 
 **功能描述：** 获取设备的运行统计数据
 
@@ -716,45 +718,58 @@ curl "http://api.example.com/api/devices/lamp_001/light-history?startTime=2026-0
 
 ---
 
-### 6.2 导出历史数据
+### 6.2 获取所有设备统计概览
 
-**接口路径：** `POST /devices/:deviceId/export`
+**接口路径：** `GET /api/statistics/overview`
 
-**功能描述：** 导出设备历史数据为CSV文件
+**功能描述：** 获取所有设备的统计汇总
 
-**权限要求：** 管理员
+**权限要求：** 管理员、市政人员
 
-**路径参数：**
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| deviceId | string | 是 | 设备ID |
-
-**请求体：**
-```json
-{
-  "dataType": "light",  // "light"=光照数据, "control"=控制日志
-  "startTime": "2026-06-01T00:00:00Z",
-  "endTime": "2026-06-30T23:59:59Z",
-  "format": "csv"  // 目前只支持csv
-}
-```
+**请求参数：** 无
 
 **成功响应：** 200
 ```json
 {
   "code": 200,
-  "message": "导出任务已创建",
-  "data": {
-    "taskId": "export_12345",
-    "status": "processing",
-    "estimatedTime": 30  // 预计完成时间（秒）
-  }
+  "message": "成功",
+  "data": [
+    {
+      "deviceId": "lamp_001",
+      "deviceName": "路灯001",
+      "avgLightIntensity": 245.6,
+      "maxLightIntensity": 850,
+      "minLightIntensity": 50,
+      "totalRecords": 1440
+    },
+    {
+      "deviceId": "lamp_002",
+      "deviceName": "路灯002",
+      "avgLightIntensity": 238.2,
+      "maxLightIntensity": 820,
+      "minLightIntensity": 45,
+      "totalRecords": 1438
+    }
+  ]
 }
 ```
 
-**查询导出任务状态：** `GET /export-tasks/:taskId`
+**错误响应：**
 
-**下载文件：** `GET /export-tasks/:taskId/download`
+500 - 服务器错误
+```json
+{
+  "code": 500,
+  "message": "统计数据计算失败",
+  "data": null
+}
+```
+
+**示例：**
+```bash
+curl -X GET "http://localhost:3000/api/statistics/overview" \
+  -H "Content-Type: application/json"
+```
 
 ---
 
@@ -762,7 +777,7 @@ curl "http://api.example.com/api/devices/lamp_001/light-history?startTime=2026-0
 
 ### 7.1 健康检查
 
-**接口路径：** `GET /health`
+**接口路径：** `GET /api/health`
 
 **功能描述：** 检查服务健康状态
 
@@ -814,6 +829,7 @@ curl "http://api.example.com/api/devices/lamp_001/light-history?startTime=2026-0
 |----|------|
 | raw | 原始采样数据 |
 | hourly | 小时级聚合数据 |
+| daily | 天级聚合数据 |
 
 ---
 
@@ -822,6 +838,7 @@ curl "http://api.example.com/api/devices/lamp_001/light-history?startTime=2026-0
 | 版本 | 日期 | 变更内容 | 变更人 |
 |------|------|----------|--------|
 | v1.0 | 2026-06-30 | 初始版本 | 任务3团队 |
+| v2.0 | 2026-06-30 | 更新Base URL为localhost:3000；添加Mock认证说明；统一接口路径添加/api前缀；添加统计概览接口；删除未实现的导出接口；更新数据粒度枚举 | 任务3团队 |
 
 ---
 
