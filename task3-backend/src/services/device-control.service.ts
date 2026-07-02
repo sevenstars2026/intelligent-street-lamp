@@ -233,4 +233,25 @@ export class DeviceControlService {
   getControlHistory(deviceId: string, limit: number = 20) {
     return MockDatabase.getControlLogs(deviceId, limit);
   }
+
+  /**
+   * 获取所有设备列表
+   */
+  getAllDevices() {
+    return MockDatabase.getAllDevices();
+  }
+
+  /**
+   * 获取单个设备详情
+   */
+  getDeviceById(deviceId: string) {
+    return MockDatabase.getDevice(deviceId);
+  }
+
+  /**
+   * 获取设备光照历史数据
+   */
+  getLightHistory(deviceId: string, startTime: Date, endTime: Date) {
+    return MockDatabase.getLightData(deviceId, startTime, endTime);
+  }
 }
