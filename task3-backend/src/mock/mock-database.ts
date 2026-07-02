@@ -6,12 +6,7 @@
 
 import type { Device, ThresholdConfig, ControlLog, Alarm } from '../types/database.types';
 
-export {
-  Device,
-  ThresholdConfig,
-  ControlLog,
-  Alarm,
-} from '../types/database.types';
+export type { Device, ThresholdConfig, ControlLog, Alarm } from '../types/database.types';
 
 export class MockDatabase {
   private static devices: Map<string, Device> = new Map();
