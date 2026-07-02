@@ -161,7 +161,7 @@
                     <input type="number" v-model.number="lightThreshold.high" placeholder="高于此值自动关灯" />
                     <span class="unit">lux</span>
                   </div>
-                  <button class="btn btn-primary" @click="saveThreshold" :disabled="savingThreshold">{{ savingThreshold ? '保存中...' : '💾 保存全局阈值' }}</button>
+                  <button class="btn btn-primary" @click="saveThreshold" :disabled="savingThreshold">{{ savingThreshold ? '保存中...' : '💾 保存当前设备阈值' }}</button>
                 </div>
                 <div :class="['feedback-msg', thresholdFeedback.type]" v-if="thresholdFeedback.show">{{ thresholdFeedback.msg }}</div>
               </div>
