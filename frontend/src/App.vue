@@ -753,6 +753,7 @@ async function initChart() {
 
 function resizeChart() {
   if (chartInstance) chartInstance.resize()
+  if (historyChartInstance) historyChartInstance.resize()
 }
 
 // ---- 设备控制 ----
