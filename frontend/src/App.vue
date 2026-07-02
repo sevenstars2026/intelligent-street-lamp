@@ -456,7 +456,7 @@ const lightThreshold = reactive({ low: 100, high: 800 })
 const alertDismissed = ref(false)
 
 // 控制
-const controlDeviceId = ref('light-001')
+const controlDeviceId = ref('')
 const controlMode = ref('auto')
 const switchFeedback = reactive({ show: false, type: '', msg: '' })
 const thresholdFeedback = reactive({ show: false, type: '', msg: '' })
