@@ -699,15 +699,20 @@ async function initChart() {
       })
       const records = res.data?.records || []
       if (records.length > 0) {
-        const dayMap = {}
+        const dayAgg = new Map()
         records.forEach(r => {
-          const d = new Date(r.timestamp).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' })
-          if (!dayMap[d]) dayMap[d] = { sum: 0, count: 0 }
-          dayMap[d].sum += r.lightIntensity
-          dayMap[d].count++
+          const key = String(r.timestamp).slice(0, 10) // YYYY-MM-DD
+          const acc = dayAgg.get(key) || { sum: 0, count: 0 }
+          acc.sum += r.lightIntensity
+          acc.count++
+          dayAgg.set(key, acc)
         })
-        days = Object.keys(dayMap)
-        values = days.map(d => Math.round(dayMap[d].sum / dayMap[d].count))
+        const keys = Array.from(dayAgg.keys()).sort()
+        days = keys.map(k => {
+          const [, m, d] = k.split('-')
+          return `${Number(m)}/${Number(d)}`
+        })
+        values = keys.map(k => Math.round(dayAgg.get(k).sum / dayAgg.get(k).count))
       }
     } catch (_) {}
   }
