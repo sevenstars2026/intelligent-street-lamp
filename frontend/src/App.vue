@@ -148,11 +148,7 @@
 
               <!-- 全局阈值与模式设置 -->
               <div class="card">
-                <div class="card-title"><span class="dot"></span>全局阈值与模式设置</div>
-                <div class="mode-toggle">
-                  <span class="mode-label">当前模式：</span>
-                  <span :class="['mode-option', {active: controlMode === 'auto'}]" @click="switchMode('auto')">🤖 自动</span>
-                  <span :class="['mode-option', {active: controlMode === 'manual'}]" @click="switchMode('manual')">🖐 手动</span>
+                <div class="card-title"><span class="dot"></span>当前设备阈值与模式设置（{{ controlDeviceName }}）</div>
                 </div>
                 <div class="threshold-form">
                   <div class="field">
