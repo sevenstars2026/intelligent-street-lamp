@@ -1,49 +1,17 @@
 /**
  * Mock数据库服务
  * 模拟数据库操作，方便独立开发和测试
+ * 类型定义已迁移到 src/types/database.types.ts，此处保留兼容 re-export
  */
 
-export interface Device {
-  id: string;
-  name: string;
-  status: 'online' | 'offline';
-  mode: 'auto' | 'manual';
-  currentState: 'on' | 'off';
-  lastHeartbeat: Date;
-}
+import type { Device, ThresholdConfig, ControlLog, Alarm } from '../types/database.types';
 
-export interface ThresholdConfig {
-  deviceId: string;
-  lightThresholdOn: number;
-  lightThresholdOff: number;
-  updatedAt: Date;
-}
-
-export interface ControlLog {
-  id: number;
-  deviceId: string;
-  command: 'on' | 'off';
-  status: 'success' | 'failed' | 'timeout';
-  operatorId: number;
-  operatorName: string;
-  requestTime: Date;
-  responseTime: Date | null;
-  resultMessage: string;
-}
-
-export interface Alarm {
-  id: number;
-  deviceId: string;
-  deviceName: string;
-  alarmType: 'offline' | 'control_failed' | 'frequent_switch';
-  alarmLevel: 'low' | 'medium' | 'high';
-  status: 'active' | 'resolved';
-  message: string;
-  createdAt: Date;
-  handledAt: Date | null;
-  handlerId: number | null;
-  handlerName: string | null;
-}
+export {
+  Device,
+  ThresholdConfig,
+  ControlLog,
+  Alarm,
+} from '../types/database.types';
 
 export class MockDatabase {
   private static devices: Map<string, Device> = new Map();

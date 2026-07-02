@@ -16,6 +16,7 @@ type MessageHandler = (topic: string, message: any) => void;
 export class MockMqttClient {
   private client: RealMqttClient | null = null;
   private subscribers: Map<string, MessageHandler[]> = new Map();
+  private subscribedTopics: Set<string> = new Set();
   private isConnected: boolean = false;
   private messageHistory: MqttMessage[] = [];
 
@@ -41,6 +42,14 @@ export class MockMqttClient {
       this.client.on('connect', () => {
         this.isConnected = true;
         console.log(`[MQTT] ✅ Connected to broker: ${brokerUrl}`);
+        console.log(`[MQTT] Hardware simulation: ${this.isSimulateEnabled() ? 'ENABLED' : 'DISABLED'}`);
+
+        // 重新订阅所有之前注册的 topic
+        this.subscribedTopics.forEach((topic) => {
+          this.doSubscribe(topic);
+        });
+        console.log(`[MQTT] Resubscribed to ${this.subscribedTopics.size} topic(s)`);
+
         resolve();
       });
 
@@ -52,6 +61,10 @@ export class MockMqttClient {
       });
 
       this.client.on('message', (topic: string, payload: Buffer) => {
+        // 只处理本组 lamp_ 设备的消息，忽略其他组
+        const deviceId = this.extractDeviceId(topic);
+        if (!deviceId.startsWith('lamp_')) return;
+
         let parsed: any;
         try {
           parsed = JSON.parse(payload.toString());
@@ -101,22 +114,33 @@ export class MockMqttClient {
    * 订阅Topic
    */
   subscribe(topic: string, handler: MessageHandler): void {
-    // 向真实 Broker 订阅
-    if (this.client) {
-      this.client.subscribe(topic, (err) => {
-        if (err) {
-          console.error(`[MQTT] Failed to subscribe to ${topic}:`, err);
-        } else {
-          console.log(`[MQTT] Subscribed to topic: ${topic}`);
-        }
-      });
+    // 记录topic，连接成功后统一向 Broker 订阅
+    this.subscribedTopics.add(topic);
+
+    // 如果已连接，立即向 Broker 订阅
+    if (this.client && this.isConnected) {
+      this.doSubscribe(topic);
     }
 
-    // 同时注册本地处理器
+    // 注册本地处理器
     if (!this.subscribers.has(topic)) {
       this.subscribers.set(topic, []);
     }
     this.subscribers.get(topic)!.push(handler);
+  }
+
+  /**
+   * 向真实 Broker 执行订阅
+   */
+  private doSubscribe(topic: string): void {
+    if (!this.client) return;
+    this.client.subscribe(topic, (err) => {
+      if (err) {
+        console.error(`[MQTT] Failed to subscribe to ${topic}:`, err);
+      } else {
+        console.log(`[MQTT] Subscribed to topic: ${topic}`);
+      }
+    });
   }
 
   /**
@@ -144,8 +168,8 @@ export class MockMqttClient {
             timestamp: new Date(),
           });
 
-          // 模拟硬件控制反馈（1-3秒延迟，90%成功率）
-          if (topic.includes('/control')) {
+          // 模拟硬件控制反馈（仅在开启模拟模式时）
+          if (topic.includes('/control') && this.isSimulateEnabled()) {
             this.simulateHardwareResponse(topic, message);
           }
 
@@ -222,6 +246,15 @@ export class MockMqttClient {
   private extractDeviceId(topic: string): string {
     const match = topic.match(/devices\/([^/]+)\//);
     return match ? match[1] : 'unknown';
+  }
+
+  /**
+   * 是否启用硬件模拟（从环境变量读取）
+   */
+  private isSimulateEnabled(): boolean {
+    const val = process.env.MQTT_SIMULATE_HARDWARE;
+    // 默认开启模拟，仅当明确设为 'false' 或 '0' 时关闭
+    return val !== 'false' && val !== '0';
   }
 
   /**
