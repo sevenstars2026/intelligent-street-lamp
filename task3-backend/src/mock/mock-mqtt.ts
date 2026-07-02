@@ -79,7 +79,7 @@ export class MockMqttClient {
           payload: parsed,
           timestamp: new Date(),
         });
-
+        if (this.messageHistory.length > 1000) this.messageHistory.shift();
         // 分发给匹配的订阅者
         this.triggerSubscribers(topic, parsed);
       });
