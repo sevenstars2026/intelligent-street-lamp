@@ -1,204 +1,148 @@
 # 任务3：后端业务逻辑层
 
-智慧路灯系统 - 任务3后端业务逻辑服务
+智慧路灯系统 Express + TypeScript 后端服务，连接真实 MySQL 和 MQTT Broker，提供 11 个 MVP REST API。
 
-## 📋 项目概述
+---
 
-本项目实现了智慧路灯系统的核心业务逻辑，包括：
-- ✅ 设备控制服务（单个/批量）
-- ✅ 阈值管理
-- ✅ 设备模式管理（自动/手动）
-- ✅ 控制历史查询
-- ⏳ 告警服务（待完成）
-- ⏳ 数据统计服务（待完成）
+## 技术栈
 
-## 🚀 快速开始
+- **运行时**: Node.js + TypeScript
+- **框架**: Express 4
+- **数据库**: MySQL 8（mysql2/promise 连接池）
+- **消息协议**: MQTT（mqtt.js 真实 Broker）
+- **开发工具**: ts-node-dev（热重载）
 
-### 1. 安装依赖
+---
+
+## 快速开始
+
+### 1. 安装
 
 ```bash
 npm install
 ```
 
-### 2. 配置环境变量
+### 2. 配置
 
 ```bash
 cp .env.example .env
 ```
 
-### 3. 启动开发服务器
+编辑 `.env`：
+
+```env
+PORT=3000
+DB_HOST=47.108.58.107
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=dream20
+MQTT_BROKER_URL=mqtt://47.108.58.107:1883
+MQTT_SIMULATE_HARDWARE=false   # 使用真实硬件（不模拟）
+```
+
+### 3. 启动
 
 ```bash
 npm run dev
 ```
 
-服务将运行在 `http://localhost:3000`
+启动后输出：
 
-### 4. 测试API
+```
+✓ MySQL Database connected
+✓ MQTT ✅ Connected to broker
+[MQTT] Subscribed to topic: devices/+/control/response
+[MQTT] Subscribed to topic: devices/+/data
+[MQTT] Subscribed to topic: devices/+/heartbeat
+🚀 Server running on port 3000
+```
 
-健康检查：
+### 4. 验证
+
 ```bash
 curl http://localhost:3000/api/health
+# → {"code":200,"message":"healthy","data":{"status":"up",...}}
 ```
 
-控制路灯：
-```bash
-curl -X POST http://localhost:3000/api/devices/lamp_001/control \
-  -H "Content-Type: application/json" \
-  -d '{"command": "on"}'
-```
+---
 
-## 📁 项目结构
+## 项目结构
 
 ```
-task3-backend/
-├── src/
-│   ├── controllers/         # 控制器层
-│   │   └── device-control.controller.ts
-│   ├── services/           # 业务逻辑层
-│   │   └── device-control.service.ts
-│   ├── routes/             # 路由配置
-│   │   └── device-control.routes.ts
-│   ├── utils/              # 工具类和算法
-│   │   ├── threshold-algorithm.ts        # 光照阈值判定算法
-│   │   ├── alarm-upgrade-algorithm.ts    # 告警升级算法
-│   │   └── data-aggregation-algorithm.ts # 数据聚合算法
-│   ├── mock/               # Mock服务（用于独立开发）
-│   │   ├── mock-database.ts    # Mock数据库
-│   │   ├── mock-mqtt.ts        # Mock MQTT客户端
-│   │   └── mock-redis.ts       # Mock Redis
-│   ├── models/             # 数据模型（待添加）
-│   ├── middlewares/        # 中间件（待添加）
-│   ├── config/             # 配置文件（待添加）
-│   └── index.ts            # 主入口文件
-├── dist/                   # 编译输出目录
-├── package.json
-├── tsconfig.json
-├── .env.example
-└── README.md
+src/
+├── index.ts                          # 主入口（Express + 中间件 + 启动）
+├── config/
+│   └── database.ts                   # MySQL 连接池配置
+├── types/
+│   └── database.types.ts             # 全部 TypeScript 数据模型
+├── controllers/
+│   └── device-control.controller.ts  # HTTP 请求处理、参数校验
+├── services/
+│   ├── device-control.service.ts     # 设备控制业务 + MQTT 订阅
+│   └── database.service.ts          # 全部数据库 CRUD 操作
+├── routes/
+│   └── device-control.routes.ts      # 路由定义（11 个接口）
+└── mock/
+    └── mock-mqtt.ts                  # MQTT 客户端（连接真实 Broker）
 ```
 
-## 🔧 核心模块说明
+---
 
-### 1. 业务算法模块 (utils/)
+## API 接口（11 个 MVP）
 
-#### 光照阈值判定算法
-```typescript
-import { ThresholdAlgorithm, LightSample } from './utils/threshold-algorithm';
-
-const samples: LightSample[] = [
-  { lightIntensity: 180, timestamp: new Date() },
-  { lightIntensity: 190, timestamp: new Date() },
-  { lightIntensity: 185, timestamp: new Date() },
-  { lightIntensity: 175, timestamp: new Date() },
-  { lightIntensity: 170, timestamp: new Date() }
-];
-
-const shouldTurnOn = ThresholdAlgorithm.shouldTurnOn(samples, 200);
-// true: 5次采样中有4次低于阈值200
-```
-
-**逻辑：** 最近5次采样中有4次满足条件才触发，避免频繁开关
-
-#### 告警升级算法
-```typescript
-import { AlarmUpgradeAlgorithm, AlarmLevel } from './utils/alarm-upgrade-algorithm';
-
-const offlineStartTime = new Date('2026-06-30T10:00:00Z');
-const currentTime = new Date('2026-06-30T17:00:00Z'); // 7小时后
-
-const level = AlarmUpgradeAlgorithm.calculateLevel(offlineStartTime, currentTime);
-// AlarmLevel.HIGH (离线超过6小时)
-```
-
-**逻辑：** 
-- 离线 < 1小时：低级告警
-- 离线 1-6小时：中级告警
-- 离线 > 6小时：高级告警
-
-#### 数据聚合算法
-```typescript
-import { DataAggregationAlgorithm } from './utils/data-aggregation-algorithm';
-
-const data = [
-  { lightIntensity: 250, timestamp: new Date() },
-  { lightIntensity: 245, timestamp: new Date() },
-  { lightIntensity: 260, timestamp: new Date() }
-];
-
-const result = DataAggregationAlgorithm.aggregate(data);
-// {
-//   avgLightIntensity: 251.7,
-//   maxLightIntensity: 260,
-//   minLightIntensity: 245,
-//   sampleCount: 3
-// }
-```
-
-### 2. Mock服务层 (mock/)
-
-由于任务2（后端基础服务层）尚未完成，使用Mock服务独立开发：
-
-- **MockDatabase**: 模拟数据库操作
-- **MockMqttClient**: 模拟MQTT通信（自动生成硬件反馈）
-- **MockRedis**: 模拟Redis缓存
-
-**优点：**
-- 不依赖外部服务，可独立开发和测试
-- Mock层设计清晰，后期替换为真实实现非常容易
-- 可以模拟各种场景（成功、失败、超时）
-
-### 3. 设备控制服务 (services/)
-
-```typescript
-import { DeviceControlService } from './services/device-control.service';
-
-const service = new DeviceControlService();
-
-// 控制单个设备
-const result = await service.controlDevice({
-  deviceId: 'lamp_001',
-  command: 'on',
-  operatorId: 1,
-  operatorName: '张三'
-});
-
-// 批量控制
-const batchResult = await service.batchControl(
-  ['lamp_001', 'lamp_002', 'lamp_003'],
-  'on',
-  1,
-  '张三'
-);
-```
-
-**特性：**
-- 10秒控制超时机制
-- MQTT指令发送
-- 等待硬件反馈
-- 自动记录控制日志
-- 90%成功率模拟（Mock模式）
-
-## 📡 API接口
-
-详细的API文档请参考：[任务3_API接口设计文档.md](../任务3_API接口设计文档.md)
-
-### 已实现的接口
-
-| 方法 | 路径 | 描述 |
+| 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/devices/:deviceId/control` | 控制单个路灯 |
-| POST | `/api/devices/batch-control` | 批量控制路灯 |
-| GET | `/api/devices/:deviceId/control-logs` | 获取控制历史 |
-| GET | `/api/devices/:deviceId/threshold` | 获取阈值配置 |
-| POST | `/api/devices/:deviceId/threshold` | 设置阈值配置 |
-| GET | `/api/devices/:deviceId/mode` | 获取控制模式 |
-| PUT | `/api/devices/:deviceId/mode` | 切换控制模式 |
 | GET | `/api/health` | 健康检查 |
+| GET | `/api/devices` | 获取所有设备 |
+| GET | `/api/devices/:deviceId` | 获取单个设备 |
+| POST | `/api/devices/:deviceId/control` | 控制开关灯 |
+| POST | `/api/devices/batch-control` | 批量控制 |
+| GET | `/api/devices/:deviceId/control-logs` | 控制日志 |
+| GET | `/api/devices/:deviceId/light-history` | 光照历史 |
+| GET | `/api/devices/:deviceId/threshold` | 获取阈值 |
+| POST | `/api/devices/:deviceId/threshold` | 设置阈值 |
+| GET | `/api/devices/:deviceId/mode` | 获取控制模式 |
+| PUT | `/api/devices/:deviceId/mode` | 切换模式 |
 
-### 接口示例
+所有接口返回统一格式 `{ code, message, data }`。
 
-#### 1. 控制路灯
+---
+
+## MQTT 消息架构
+
+| Topic | 方向 | 处理 |
+|-------|------|------|
+| `devices/{id}/control` | 后端→硬件 | 下发开/关灯指令 |
+| `devices/{id}/control/response` | 硬件→后端 | 控制结果反馈，更新 control_logs 和设备状态 |
+| `devices/{id}/data` | 硬件→后端 | 光照数据上报 → 写入 `light_data` 表 |
+| `devices/{id}/heartbeat` | 硬件→后端 | 心跳上报 → 更新 `devices.last_heartbeat` 和在线状态 |
+
+控制指令格式：
+```json
+{"cmd": "switch", "value": "on|off", "requestId": "uuid", "timestamp": 123456789}
+```
+
+硬件数据上报支持 `lightIntensity` / `lux` / `value` 多种字段名。
+
+---
+
+## 数据库表
+
+| 表名 | 用途 |
+|------|------|
+| `devices` | 设备信息（ID、名称、状态、模式、心跳） |
+| `thresholds` | 光照阈值配置 |
+| `control_logs` | 控制指令操作记录 |
+| `light_data` | 光照数据原始记录 |
+| `alarms` | 告警记录（表结构就绪，服务待实现） |
+| `aggregated_data` | 聚合统计数据（表结构就绪） |
+
+---
+
+## 接口示例
+
+### 控制开灯
 
 ```bash
 curl -X POST http://localhost:3000/api/devices/lamp_001/control \
@@ -208,145 +152,33 @@ curl -X POST http://localhost:3000/api/devices/lamp_001/control \
 
 响应：
 ```json
-{
-  "code": 200,
-  "message": "控制成功",
-  "data": {
-    "deviceId": "lamp_001",
-    "command": "on",
-    "status": "success",
-    "executedAt": "2026-06-30T10:00:00.000Z"
-  }
-}
+{"code":200,"message":"控制成功","data":{"deviceId":"lamp_001","command":"on","status":"success"}}
 ```
 
-#### 2. 批量控制
+### 查询光照历史
 
 ```bash
-curl -X POST http://localhost:3000/api/devices/batch-control \
-  -H "Content-Type: application/json" \
-  -d '{
-    "deviceIds": ["lamp_001", "lamp_002"],
-    "command": "on"
-  }'
+curl "http://localhost:3000/api/devices/lamp_001/light-history?startTime=2026-07-01T00:00:00Z&endTime=2026-07-02T00:00:00Z"
 ```
 
-#### 3. 设置阈值
+### 设置阈值
 
 ```bash
 curl -X POST http://localhost:3000/api/devices/lamp_001/threshold \
   -H "Content-Type: application/json" \
-  -d '{
-    "lightThresholdOn": 200,
-    "lightThresholdOff": 300
-  }'
+  -d '{"lightThresholdOn": 150, "lightThresholdOff": 600}'
 ```
 
-#### 4. 切换模式
+---
 
-```bash
-curl -X PUT http://localhost:3000/api/devices/lamp_001/mode \
-  -H "Content-Type: application/json" \
-  -d '{"mode": "manual"}'
-```
+## 认证
 
-## 🔄 与任务2的集成
+当前使用 Mock JWT 中间件，所有请求自动注入 `req.user = { id: 1, name: '测试用户', role: 'admin' }`，无需真实 token。
 
-当任务2（后端基础服务层）完成后，需要替换Mock服务：
+---
 
-### 1. 数据库集成
+## 相关文档
 
-替换 `mock/mock-database.ts` 为真实的数据库操作：
-
-```typescript
-// 将来替换为真实的数据库操作
-import { DatabaseService } from '../services/database.service';
-
-// MockDatabase.getDevice(deviceId)
-// 替换为:
-await DatabaseService.query('SELECT * FROM devices WHERE id = ?', [deviceId]);
-```
-
-### 2. MQTT集成
-
-替换 `mock/mock-mqtt.ts` 为真实的MQTT客户端：
-
-```typescript
-// 将来替换为真实的MQTT客户端
-import mqtt from 'mqtt';
-
-const client = mqtt.connect(process.env.MQTT_BROKER_URL);
-```
-
-### 3. Redis集成
-
-替换 `mock/mock-redis.ts` 为真实的Redis客户端：
-
-```typescript
-// 将来替换为真实的Redis
-import Redis from 'ioredis';
-
-const redis = new Redis({
-  host: process.env.REDIS_HOST,
-  port: parseInt(process.env.REDIS_PORT || '6379')
-});
-```
-
-**替换步骤：**
-1. 保持业务逻辑层代码不变
-2. 只修改Mock导入为真实服务导入
-3. 调整初始化代码
-4. 测试验证
-
-## 🧪 测试
-
-### 单元测试（待实现）
-
-```bash
-npm test
-```
-
-### 手动测试
-
-1. 启动服务：`npm run dev`
-2. 使用Postman或curl测试API
-3. Mock服务已包含3个测试设备：`lamp_001`, `lamp_002`, `lamp_003`
-
-## 📦 构建和部署
-
-### 构建生产版本
-
-```bash
-npm run build
-```
-
-### 启动生产服务
-
-```bash
-npm start
-```
-
-## 🔮 待实现功能
-
-- [ ] 告警服务完整实现
-- [ ] 数据统计和聚合服务
-- [ ] 自动化规则引擎（光照阈值联动）
-- [ ] 定时任务调度
-- [ ] 数据导出功能
-- [ ] 完整的用户认证集成
-- [ ] 单元测试
-- [ ] 集成测试
-
-## 📚 相关文档
-
-- [任务3_API接口设计文档.md](../任务3_API接口设计文档.md) - 完整的API接口文档
-- [任务3_实现细节确认.md](../任务3_实现细节确认.md) - 实现细节确认记录
-- [各任务交付清单.md](../各任务交付清单.md) - 任务依赖和交付清单
-
-## 🤝 贡献
-
-任务3团队
-
-## 📄 License
-
-MIT
+- [../README.md](../README.md) — 项目总览
+- [../前端使用指南.md](../前端使用指南.md) — 前端完整使用文档
+- [../任务3_API接口设计文档.md](../任务3_API接口设计文档.md) — API 详细规范

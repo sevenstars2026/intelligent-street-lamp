@@ -423,6 +423,21 @@
 
     <!-- Toast通知 -->
     <div :class="['toast', toast.show ? 'show' : '', 'toast-' + toast.type]" v-text="toast.msg"></div>
+
+    <!-- ========== MaxKB 浮窗对话 ========== -->
+    <div class="maxkb-chat-wrapper" v-if="isLoggedIn">
+      <button class="chat-toggle-btn" @click="toggleMaxKBChat">
+        💬
+      </button>
+      <div class="chat-window" v-show="showMaxKBChat">
+        <iframe
+          src="http://192.168.20.119:8080/chat/789963b4426e509f"
+          frameborder="0"
+          allow="microphone"
+          style="width:100%;height:100%;border:none;"
+        ></iframe>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -482,6 +497,9 @@ const historyRange = ref('7d')
 const historyData = ref([])
 const historyChartRef2 = ref(null)
 let historyChartInstance = null
+
+// MaxKB 浮窗对话
+const showMaxKBChat = ref(false)
 
 // 智能问答
 const chatMessages = ref([
@@ -557,7 +575,6 @@ const menuItems = computed(() => {
     { key: 'logs', label: '控制日志', icon: '📄' },
     { key: 'history', label: '历史数据', icon: '📈' },
     { key: 'statistics', label: '统计概览', icon: '📉' },
-    { key: 'chat', label: '智能问答', icon: '🤖' },
   ]
 })
 
@@ -960,6 +977,11 @@ function initHistoryChart() {
   })
 }
 
+// ---- MaxKB 浮窗 ----
+function toggleMaxKBChat() {
+  showMaxKBChat.value = !showMaxKBChat.value
+}
+
 // ---- 智能问答 ----
 function sendChat() {
   const q = chatInput.value.trim()
@@ -1200,4 +1222,49 @@ tr:hover td{background:#fafafa}
 /* 响应式 */
 @media(max-width:1200px){.stat-row{grid-template-columns:repeat(2,1fr)}.control-grid{grid-template-columns:1fr}.statistics-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){.sidebar{width:60px}.sidebar .logo span,.sidebar .nav-item span,.sidebar .user-info span{display:none}.sidebar .logo,.sidebar .nav-item,.sidebar .user-info{justify-content:center;padding:12px}.stat-row{grid-template-columns:1fr}.statistics-grid{grid-template-columns:1fr}}
+
+/* MaxKB 浮窗样式 */
+.maxkb-chat-wrapper {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+}
+.chat-toggle-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #1890ff;
+  color: #fff;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(24,144,255,.4);
+  transition: all .3s;
+}
+.chat-toggle-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 24px rgba(24,144,255,.55);
+}
+.chat-window {
+  position: absolute;
+  bottom: 72px;
+  right: 0;
+  width: 420px;
+  height: 560px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.2);
+  overflow: hidden;
+  border: 1px solid #e8e8e8;
+}
+@media (max-width: 600px) {
+  .chat-window {
+    width: 100vw;
+    height: 100vh;
+    bottom: 0;
+    right: 0;
+    border-radius: 0;
+  }
+}
 </style>

@@ -47,11 +47,68 @@ export class DeviceControlService {
    */
   private initMqttSubscriptions(): void {
     // 订阅控制反馈，只处理 lamp_ 开头的本组设备
-mockMqttClient.subscribe('devices/+/control/response', (_topic, message) => {
-  const deviceId = message.device_code || message.deviceId;
-  if (!deviceId || !deviceId.startsWith('lamp_')) return;
-  this.handleControlResponse({ ...message, deviceId });
-});
+    mockMqttClient.subscribe('devices/+/control/response', (_topic, message) => {
+      const deviceId = message.device_code || message.deviceId;
+      if (!deviceId || !deviceId.startsWith('lamp_')) return;
+      this.handleControlResponse({ ...message, deviceId });
+    });
+
+    // 订阅硬件光照数据上报 → 写入数据库
+    mockMqttClient.subscribe('devices/+/data', async (_topic, message) => {
+      const deviceId = message.device_code || message.deviceId;
+      if (!deviceId || !deviceId.startsWith('lamp_')) return;
+      await this.handleHardwareData(deviceId, message);
+    });
+
+    // 订阅硬件心跳 → 更新设备在线状态
+    mockMqttClient.subscribe('devices/+/heartbeat', async (_topic, message) => {
+      const deviceId = message.device_code || message.deviceId;
+      if (!deviceId || !deviceId.startsWith('lamp_')) return;
+      await this.handleHardwareHeartbeat(deviceId);
+    });
+  }
+
+  /**
+   * 处理硬件上传的光照数据，写入数据库
+   */
+  private async handleHardwareData(deviceId: string, message: any): Promise<void> {
+    try {
+      const lightIntensity = message.lightIntensity
+        ?? message.light_intensity
+        ?? message.lux
+        ?? message.value;
+      const timestamp = message.timestamp
+        ? new Date(message.timestamp)
+        : new Date();
+
+      if (typeof lightIntensity !== 'number' || isNaN(lightIntensity)) {
+        console.warn(`[HardwareData] Invalid lightIntensity from ${deviceId}:`, message);
+        return;
+      }
+
+      await DatabaseService.addLightData({
+        deviceId,
+        lightIntensity,
+        timestamp,
+      });
+      console.log(`[HardwareData] 💾 Saved: ${deviceId} = ${lightIntensity} lux @ ${timestamp.toISOString()}`);
+
+      // TODO: 自动控制 — 根据光照阈值和当前模式自动开关灯
+    } catch (err) {
+      console.error(`[HardwareData] Failed to save data for ${deviceId}:`, err);
+    }
+  }
+
+  /**
+   * 处理硬件心跳，更新设备在线状态和最后心跳时间
+   */
+  private async handleHardwareHeartbeat(deviceId: string): Promise<void> {
+    try {
+      await DatabaseService.updateHeartbeat(deviceId);
+      console.log(`[Heartbeat] 💓 ${deviceId} heartbeat updated`);
+    } catch (err) {
+      console.error(`[Heartbeat] Failed to update heartbeat for ${deviceId}:`, err);
+    }
   }
 
   /**

@@ -190,6 +190,7 @@ export class DatabaseService {
       throw new Error(`Failed to load threshold after upsert for device_id=${config.deviceId}`);
     }
     return updated;
+  }
 
   // ===== 控制日志操作 =====
 
