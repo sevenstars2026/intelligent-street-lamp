@@ -5,7 +5,7 @@
 
 import { Request, Response } from 'express';
 import { DeviceControlService } from '../services/device-control.service';
-import { MockDatabase } from '../mock/mock-database';
+import { DatabaseService } from '../services/database.service';
 
 const controlService = new DeviceControlService();
 
@@ -30,7 +30,7 @@ export class DeviceControlController {
       }
 
       // 验证设备是否存在
-      const device = MockDatabase.getDevice(deviceId);
+      const device = await DatabaseService.getDevice(deviceId);
       if (!device) {
         res.status(404).json({
           code: 404,
@@ -153,7 +153,7 @@ export class DeviceControlController {
    */
   static async getAllDevices(req: Request, res: Response): Promise<void> {
     try {
-      const devices = controlService.getAllDevices();
+      const devices = await controlService.getAllDevices();
 
       res.status(200).json({
         code: 200,
@@ -178,7 +178,7 @@ export class DeviceControlController {
     try {
       const { deviceId } = req.params;
 
-      const device = controlService.getDeviceById(deviceId);
+      const device = await controlService.getDeviceById(deviceId);
 
       if (!device) {
         res.status(404).json({
@@ -214,7 +214,7 @@ export class DeviceControlController {
       const { page = 1, pageSize = 20 } = req.query;
 
       const limit = Math.min(parseInt(pageSize as string, 10) || 20, 100);
-      const logs = controlService.getControlHistory(deviceId, limit);
+      const logs = await controlService.getControlHistory(deviceId, limit);
 
       res.status(200).json({
         code: 200,
@@ -247,7 +247,7 @@ export class DeviceControlController {
     try {
       const { deviceId } = req.params;
 
-      const threshold = MockDatabase.getThreshold(deviceId);
+      const threshold = await DatabaseService.getThreshold(deviceId);
 
       if (!threshold) {
         res.status(404).json({
@@ -302,7 +302,7 @@ export class DeviceControlController {
       }
 
       // 保存配置
-      const threshold = MockDatabase.setThreshold({
+      const threshold = await DatabaseService.setThreshold({
         deviceId,
         lightThresholdOn,
         lightThresholdOff
@@ -331,7 +331,7 @@ export class DeviceControlController {
     try {
       const { deviceId } = req.params;
 
-      const device = MockDatabase.getDevice(deviceId);
+      const device = await DatabaseService.getDevice(deviceId);
 
       if (!device) {
         res.status(404).json({
@@ -380,7 +380,7 @@ export class DeviceControlController {
         return;
       }
 
-      const success = MockDatabase.updateDeviceMode(deviceId, mode);
+      const success = await DatabaseService.updateDeviceMode(deviceId, mode);
 
       if (!success) {
         res.status(404).json({
@@ -441,7 +441,7 @@ export class DeviceControlController {
         return;
       }
 
-      const records = controlService.getLightHistory(deviceId, start, end);
+      const records = await controlService.getLightHistory(deviceId, start, end);
 
       res.status(200).json({
         code: 200,
