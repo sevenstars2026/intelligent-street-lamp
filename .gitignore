@@ -1,0 +1,45 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+server/node_modules/
+
+# Build output
+frontend/dist/
+server/dist/
+dist/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+server/.env
+frontend/.env
+
+# Logs
+*.log
+logs/
+server/logs/
+frontend/logs/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Test coverage
+coverage/
+
+# Temporary files
+*.tmp
+*.temp
+
+# OS
+.DS_Store
+Thumbs.db
