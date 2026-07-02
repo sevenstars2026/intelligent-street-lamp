@@ -47,11 +47,11 @@ export class DeviceControlService {
    */
   private initMqttSubscriptions(): void {
     // 订阅控制反馈，只处理 lamp_ 开头的本组设备
-    mockMqttClient.subscribe('devices/+/control/response', (topic, message) => {
-      const deviceId = message.device_code || message.deviceId;
-      if (!deviceId || !deviceId.startsWith('lamp_')) return;
-      this.handleControlResponse(message);
-    });
+mockMqttClient.subscribe('devices/+/control/response', (_topic, message) => {
+  const deviceId = message.device_code || message.deviceId;
+  if (!deviceId || !deviceId.startsWith('lamp_')) return;
+  this.handleControlResponse({ ...message, deviceId });
+});
   }
 
   /**
