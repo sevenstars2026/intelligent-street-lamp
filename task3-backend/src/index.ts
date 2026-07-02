@@ -6,7 +6,8 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import deviceControlRoutes from './routes/device-control.routes';
-import { MockDatabase } from './mock/mock-database';
+import { DatabaseService } from './services/database.service';
+import { closePool } from './config/database';
 import { mockMqttClient } from './mock/mock-mqtt';
 
 // 加载环境变量
@@ -87,9 +88,8 @@ async function initialize() {
   try {
     console.log('Initializing services...');
 
-    // 初始化Mock数据库
-    MockDatabase.init();
-    console.log('✓ Mock Database initialized');
+    // 连接MySQL数据库
+    await DatabaseService.init();
 
     // 连接Mock MQTT
     await mockMqttClient.connect();
@@ -122,15 +122,17 @@ async function start() {
 }
 
 // 优雅关闭
-process.on('SIGINT', () => {
+process.on('SIGINT', async () => {
   console.log('\nShutting down gracefully...');
   mockMqttClient.disconnect();
+  await closePool();
   process.exit(0);
 });
 
-process.on('SIGTERM', () => {
+process.on('SIGTERM', async () => {
   console.log('\nShutting down gracefully...');
   mockMqttClient.disconnect();
+  await closePool();
   process.exit(0);
 });
 

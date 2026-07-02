@@ -3,7 +3,7 @@
  * 处理路灯的开关控制逻辑
  */
 
-import { MockDatabase } from '../mock/mock-database';
+import { DatabaseService } from './database.service';
 import { mockMqttClient } from '../mock/mock-mqtt';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -46,10 +46,12 @@ export class DeviceControlService {
    * 初始化MQTT订阅（监听硬件反馈）
    */
   private initMqttSubscriptions(): void {
-    // 订阅所有设备的控制反馈
-    mockMqttClient.subscribe('devices/+/control/response', (topic, message) => {
-      this.handleControlResponse(message);
-    });
+    // 订阅控制反馈，只处理 lamp_ 开头的本组设备
+mockMqttClient.subscribe('devices/+/control/response', (_topic, message) => {
+  const deviceId = message.device_code || message.deviceId;
+  if (!deviceId || !deviceId.startsWith('lamp_')) return;
+  this.handleControlResponse({ ...message, deviceId });
+});
   }
 
   /**
@@ -57,7 +59,7 @@ export class DeviceControlService {
    */
   async controlDevice(request: ControlRequest): Promise<ControlResult> {
     // 1. 验证设备是否存在
-    const device = MockDatabase.getDevice(request.deviceId);
+    const device = await DatabaseService.getDevice(request.deviceId);
     if (!device) {
       return {
         deviceId: request.deviceId,
@@ -80,7 +82,7 @@ export class DeviceControlService {
     }
 
     // 3. 记录控制日志
-    const log = MockDatabase.addControlLog({
+    const log = await DatabaseService.addControlLog({
       deviceId: request.deviceId,
       command: request.command,
       status: 'success', // 先设为success，后续根据结果更新
@@ -108,7 +110,7 @@ export class DeviceControlService {
     );
 
     if (!published) {
-      MockDatabase.updateControlLogResult(log.id, 'failed', 'MQTT发送失败');
+      await DatabaseService.updateControlLogResult(log.id, 'failed', 'MQTT发送失败');
       return {
         deviceId: request.deviceId,
         command: request.command,
@@ -122,11 +124,11 @@ export class DeviceControlService {
     const result = await this.waitForResponse(requestId, request.deviceId, request.command);
 
     // 7. 更新控制日志
-    MockDatabase.updateControlLogResult(log.id, result.status, result.message);
+    await DatabaseService.updateControlLogResult(log.id, result.status, result.message);
 
     // 8. 如果控制成功，更新设备状态
     if (result.status === 'success') {
-      MockDatabase.updateDeviceState(request.deviceId, request.command);
+      await DatabaseService.updateDeviceState(request.deviceId, request.command);
     }
 
     return result;
@@ -222,36 +224,36 @@ export class DeviceControlService {
   /**
    * 获取设备当前状态
    */
-  getDeviceState(deviceId: string): 'on' | 'off' | null {
-    const device = MockDatabase.getDevice(deviceId);
+  async getDeviceState(deviceId: string): Promise<'on' | 'off' | null> {
+    const device = await DatabaseService.getDevice(deviceId);
     return device ? device.currentState : null;
   }
 
   /**
    * 获取设备控制历史
    */
-  getControlHistory(deviceId: string, limit: number = 20) {
-    return MockDatabase.getControlLogs(deviceId, limit);
+  async getControlHistory(deviceId: string, limit: number = 20) {
+    return DatabaseService.getControlLogs(deviceId, limit);
   }
 
   /**
    * 获取所有设备列表
    */
-  getAllDevices() {
-    return MockDatabase.getAllDevices();
+  async getAllDevices() {
+    return DatabaseService.getAllDevices();
   }
 
   /**
    * 获取单个设备详情
    */
-  getDeviceById(deviceId: string) {
-    return MockDatabase.getDevice(deviceId);
+  async getDeviceById(deviceId: string) {
+    return DatabaseService.getDevice(deviceId);
   }
 
   /**
    * 获取设备光照历史数据
    */
-  getLightHistory(deviceId: string, startTime: Date, endTime: Date) {
-    return MockDatabase.getLightData(deviceId, startTime, endTime);
+  async getLightHistory(deviceId: string, startTime: Date, endTime: Date) {
+    return DatabaseService.getLightData(deviceId, startTime, endTime);
   }
 }
