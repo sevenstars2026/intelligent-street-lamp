@@ -1,11 +1,14 @@
-# 任务3（后端业务逻辑层）- API接口设计文档
+# 智慧路灯系统 - API 接口设计文档
 
 ## 📋 文档信息
 
-- **版本：** v2.0
-- **更新时间：** 2026-06-30
-- **服务名称：** 智慧路灯业务逻辑
+- **版本：** v3.0（MVP 精简版）
+- **更新时间：** 2026-07-02
+- **服务名称：** 智慧路灯业务逻辑层（Task3 Backend）
 - **Base URL：** `http://localhost:3000/api`
+- **接口总数：** 11 个
+
+> **版本说明：** v3.0 为 MVP 精简版，删除了告警管理、数据统计、全局配置等非核心接口，聚焦于设备控制、阈值管理、模式切换、控制日志和光照历史数据查询。v2.0 完整版（14 个接口）备份见 `完整架构备份.md`。
 
 ---
 
@@ -13,59 +16,199 @@
 
 ### 1. 认证方式
 
-**开发阶段（当前）：** Mock认证，所有请求自动通过，无需token
-
-**生产环境：** 需要在请求头中携带JWT token（等待任务2完成）
+**当前阶段（MVP）：** Mock 认证，所有请求自动通过。后端中间件为每个请求注入硬编码用户信息：
+```json
+{ "id": 1, "name": "测试用户", "role": "admin" }
 ```
-Authorization: Bearer {token}
-```
+无需在请求头中携带 token。生产环境将替换为真实 JWT 认证。
 
 ### 2. 统一响应格式
+
 ```json
 {
   "code": 200,           // 业务状态码
   "message": "success",  // 提示信息
-  "data": {...}          // 实际数据，失败时为null
+  "data": { ... }        // 实际数据，失败时为 null
 }
 ```
 
 ### 3. 通用错误码
+
 | 状态码 | 说明 |
 |--------|------|
 | 200 | 成功 |
 | 400 | 请求参数错误 |
-| 401 | 未认证或token失效 |
-| 403 | 无权限 |
 | 404 | 资源不存在 |
+| 408 | 控制超时 |
 | 500 | 服务器内部错误 |
-| 503 | 服务暂时不可用 |
+| 503 | MQTT 控制服务不可用 |
 
-### 4. 时间格式
-所有时间字段使用ISO 8601格式：`2026-06-30T10:30:00Z`
+### 4. 设备 ID 规范
+
+设备 ID 格式为 `lamp_` 前缀加三位数字编号，例如：`lamp_001`、`lamp_002`、`lamp_003`。MQTT 消息处理会过滤非 `lamp_` 前缀的设备。
+
+### 5. 时间格式
+
+所有时间字段返回 ISO 8601 格式：`2026-07-02T10:30:00.000Z`
 
 ---
 
-## 1. 设备控制接口
+## 📡 接口列表总览
 
-### 1.1 控制单个路灯
+| # | 方法 | 路径 | 功能 |
+|---|------|------|------|
+| 1 | GET | `/api/health` | 健康检查 |
+| 2 | GET | `/api/devices` | 获取所有设备 |
+| 3 | GET | `/api/devices/:deviceId` | 获取单个设备 |
+| 4 | POST | `/api/devices/:deviceId/control` | 控制单个路灯 |
+| 5 | POST | `/api/devices/batch-control` | 批量控制路灯 |
+| 6 | GET | `/api/devices/:deviceId/control-logs` | 查询控制日志 |
+| 7 | GET | `/api/devices/:deviceId/threshold` | 获取设备阈值 |
+| 8 | POST | `/api/devices/:deviceId/threshold` | 设置设备阈值 |
+| 9 | GET | `/api/devices/:deviceId/mode` | 获取设备模式 |
+| 10 | PUT | `/api/devices/:deviceId/mode` | 切换设备模式 |
+| 11 | GET | `/api/devices/:deviceId/light-history` | 查询光照历史数据 |
 
-**接口路径：** `POST /api/devices/:deviceId/control`
+---
 
-**功能描述：** 远程控制指定路灯的开关
+## 1. 系统接口
+
+### 1.1 健康检查
+
+**接口路径：** `GET /api/health`
+
+**功能描述：** 检查服务运行状态及依赖服务连接状态
+
+**权限要求：** 无
+
+**请求参数：** 无
+
+**成功响应：** 200
+```json
+{
+  "code": 200,
+  "message": "healthy",
+  "data": {
+    "status": "up",
+    "timestamp": "2026-07-02T10:00:00.000Z",
+    "services": {
+      "database": "up",
+      "mqtt": "up"
+    }
+  }
+}
+```
+
+---
+
+## 2. 设备管理接口
+
+### 2.1 获取所有设备
+
+**接口路径：** `GET /api/devices`
+
+**功能描述：** 获取所有路灯设备列表及其当前状态
 
 **权限要求：** 管理员、市政人员
 
+**请求参数：** 无
+
+**成功响应：** 200
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "id": "lamp_001",
+      "name": "路灯001",
+      "status": "online",
+      "mode": "auto",
+      "currentState": "on",
+      "lastHeartbeat": "2026-07-02T09:55:00.000Z"
+    }
+  ]
+}
+```
+
+**返回字段说明：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | string | 设备唯一标识 |
+| name | string | 设备名称 |
+| status | 'online' \| 'offline' | 在线/离线状态 |
+| mode | 'auto' \| 'manual' | 控制模式 |
+| currentState | 'on' \| 'off' | 当前开关状态 |
+| lastHeartbeat | datetime | 最后心跳时间 |
+
+---
+
+### 2.2 获取单个设备
+
+**接口路径：** `GET /api/devices/:deviceId`
+
+**功能描述：** 获取指定设备的详细信息
+
 **路径参数：**
+
 | 参数名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
 | deviceId | string | 是 | 设备ID，如 lamp_001 |
 
+**成功响应：** 200
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": "lamp_001",
+    "name": "路灯001",
+    "status": "online",
+    "mode": "auto",
+    "currentState": "on",
+    "lastHeartbeat": "2026-07-02T09:55:00.000Z"
+  }
+}
+```
+
+**错误响应：** 404
+```json
+{
+  "code": 404,
+  "message": "设备不存在",
+  "data": null
+}
+```
+
+---
+
+## 3. 设备控制接口
+
+### 3.1 控制单个路灯
+
+**接口路径：** `POST /api/devices/:deviceId/control`
+
+**功能描述：** 远程控制指定路灯的开关。命令通过 MQTT 下发到硬件设备，等待硬件响应（超时时间 10 秒）。
+
+**权限要求：** 管理员、市政人员
+
+**路径参数：**
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| deviceId | string | 是 | 设备ID |
+
 **请求体：**
 ```json
 {
-  "command": "on"  // "on"=开灯, "off"=关灯
+  "command": "on"
 }
 ```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| command | string | 是 | 控制命令，`"on"` 开灯 / `"off"` 关灯 |
 
 **成功响应：** 200
 ```json
@@ -76,32 +219,23 @@ Authorization: Bearer {token}
     "deviceId": "lamp_001",
     "command": "on",
     "status": "success",
-    "executedAt": "2026-06-30T10:00:00Z"
+    "executedAt": "2026-07-02T10:00:00.000Z"
   }
 }
 ```
 
-**错误响应：**
+**错误响应示例：**
 
-404 - 设备不存在
+400 - 无效命令：
 ```json
 {
-  "code": 404,
-  "message": "设备不存在",
+  "code": 400,
+  "message": "无效的控制命令，必须是on或off",
   "data": null
 }
 ```
 
-503 - 控制服务不可用（MQTT连接失败）
-```json
-{
-  "code": 503,
-  "message": "控制服务暂时不可用，请稍后重试",
-  "data": null
-}
-```
-
-408 - 控制超时（10秒内未收到硬件反馈）
+408 - 控制超时：
 ```json
 {
   "code": 408,
@@ -110,30 +244,41 @@ Authorization: Bearer {token}
 }
 ```
 
-**调用示例：**
-```bash
-curl -X POST "http://localhost:3000/api/devices/lamp_001/control" \
-  -H "Content-Type: application/json" \
-  -d '{"command": "on"}'
+503 - MQTT 不可用：
+```json
+{
+  "code": 503,
+  "message": "控制服务暂时不可用，请稍后重试",
+  "data": null
+}
 ```
+
+> **控制流程说明：** 后端收到请求 → 验证设备存在 → 验证 MQTT 连接 → 写入控制日志 → 发布 MQTT 命令到 `devices/{deviceId}/control` → 等待硬件响应（超时 10s）→ 收到响应后更新日志和设备状态。
 
 ---
 
-### 1.2 批量控制路灯
+### 3.2 批量控制路灯
 
 **接口路径：** `POST /api/devices/batch-control`
 
-**功能描述：** 同时控制多个路灯的开关
+**功能描述：** 同时控制多个路灯的开关。所有设备并发执行，互不影响。
 
 **权限要求：** 管理员、市政人员
+
+**注意：** 此路由在 `:deviceId` 参数路由之前匹配，避免 `batch-control` 被当作设备 ID。
 
 **请求体：**
 ```json
 {
   "deviceIds": ["lamp_001", "lamp_002", "lamp_003"],
-  "command": "on"  // "on"=开灯, "off"=关灯
+  "command": "off"
 }
 ```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| deviceIds | string[] | 是 | 设备ID数组，不能为空 |
+| command | string | 是 | 控制命令，`"on"` / `"off"` |
 
 **成功响应：** 200
 ```json
@@ -144,50 +289,119 @@ curl -X POST "http://localhost:3000/api/devices/lamp_001/control" \
     "results": [
       {
         "deviceId": "lamp_001",
+        "command": "off",
         "status": "success",
-        "message": "开灯成功"
+        "message": "控制成功",
+        "executedAt": "2026-07-02T10:00:00.000Z"
       },
       {
         "deviceId": "lamp_002",
-        "status": "success",
-        "message": "开灯成功"
-      },
-      {
-        "deviceId": "lamp_003",
-        "status": "failed",
-        "message": "控制超时"
+        "command": "off",
+        "status": "timeout",
+        "message": "控制超时",
+        "executedAt": "2026-07-02T10:00:10.000Z"
       }
     ],
     "summary": {
-      "total": 3,
-      "success": 2,
+      "total": 2,
+      "success": 1,
       "failed": 1
     }
   }
 }
 ```
 
-**调用示例：**
-```bash
-curl -X POST "http://api.example.com/api/devices/batch-control" \
-  -H "Authorization: Bearer xxx" \
-  -H "Content-Type: application/json" \
-  -d '{"deviceIds": ["lamp_001", "lamp_002"], "command": "on"}'
+**错误响应：** 400
+```json
+{
+  "code": 400,
+  "message": "deviceIds必须是非空数组",
+  "data": null
+}
 ```
 
 ---
 
-## 2. 阈值管理接口
+## 4. 控制日志接口
 
-### 2.1 获取设备阈值配置
+### 4.1 查询控制日志
 
-**接口路径：** `GET /api/devices/:deviceId/threshold`
+**接口路径：** `GET /api/devices/:deviceId/control-logs`
 
-**功能描述：** 获取指定设备的光照阈值配置
+**功能描述：** 查询指定设备的控制操作历史记录
 
 **权限要求：** 管理员、市政人员
 
 **路径参数：**
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| deviceId | string | 是 | 设备ID |
+
+**查询参数：**
+
+| 参数名 | 类型 | 必填 | 默认值 | 说明 |
+|--------|------|------|--------|------|
+| page | number | 否 | 1 | 页码 |
+| pageSize | number | 否 | 20 | 每页条数（最大100） |
+
+**成功响应：** 200
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "logs": [
+      {
+        "id": 1,
+        "deviceId": "lamp_001",
+        "command": "on",
+        "status": "success",
+        "operatorId": 1,
+        "operatorName": "测试用户",
+        "requestTime": "2026-07-02T09:50:00.000Z",
+        "responseTime": "2026-07-02T09:50:02.000Z",
+        "resultMessage": "控制成功"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "pageSize": 20,
+      "total": 1,
+      "totalPages": 1
+    }
+  }
+}
+```
+
+**ControlLog 字段说明：**
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | number | 日志ID |
+| deviceId | string | 设备ID |
+| command | 'on' \| 'off' | 控制命令 |
+| status | 'success' \| 'failed' \| 'timeout' | 执行结果 |
+| operatorId | number | 操作人ID |
+| operatorName | string | 操作人名称 |
+| requestTime | datetime | 请求时间 |
+| responseTime | datetime \| null | 响应时间（未响应时为 null） |
+| resultMessage | string | 结果描述 |
+
+---
+
+## 5. 阈值管理接口
+
+### 5.1 获取设备阈值
+
+**接口路径：** `GET /api/devices/:deviceId/threshold`
+
+**功能描述：** 获取设备的开关灯光照阈值配置
+
+**权限要求：** 管理员、市政人员
+
+**路径参数：**
+
 | 参数名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
 | deviceId | string | 是 | 设备ID |
@@ -199,16 +413,23 @@ curl -X POST "http://api.example.com/api/devices/batch-control" \
   "message": "success",
   "data": {
     "deviceId": "lamp_001",
-    "lightThresholdOn": 200,   // 开灯阈值（光照低于此值触发开灯）
-    "lightThresholdOff": 300,  // 关灯阈值（光照高于此值触发关灯）
-    "updatedAt": "2026-06-30T10:00:00Z"
+    "lightThresholdOn": 200,
+    "lightThresholdOff": 300,
+    "updatedAt": "2026-07-01T18:00:00.000Z"
   }
 }
 ```
 
-**错误响应：**
+**ThresholdConfig 字段说明：**
 
-404 - 设备不存在或未配置阈值
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| deviceId | string | 设备ID |
+| lightThresholdOn | number | 开灯阈值（lux），光照低于此值自动开灯 |
+| lightThresholdOff | number | 关灯阈值（lux），光照高于此值自动关灯 |
+| updatedAt | datetime | 最后更新时间 |
+
+**错误响应：** 404
 ```json
 {
   "code": 404,
@@ -219,15 +440,16 @@ curl -X POST "http://api.example.com/api/devices/batch-control" \
 
 ---
 
-### 2.2 设置设备阈值配置
+### 5.2 设置设备阈值
 
 **接口路径：** `POST /api/devices/:deviceId/threshold`
 
-**功能描述：** 设置指定设备的光照阈值
+**功能描述：** 设置设备的开关灯光照阈值。使用 MySQL `INSERT ... ON DUPLICATE KEY UPDATE` 实现 upsert，首次设置即创建记录。
 
 **权限要求：** 管理员
 
 **路径参数：**
+
 | 参数名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
 | deviceId | string | 是 | 设备ID |
@@ -235,14 +457,17 @@ curl -X POST "http://api.example.com/api/devices/batch-control" \
 **请求体：**
 ```json
 {
-  "lightThresholdOn": 200,   // 开灯阈值，整数
-  "lightThresholdOff": 300   // 关灯阈值，整数
+  "lightThresholdOn": 200,
+  "lightThresholdOff": 300
 }
 ```
 
-**参数校验：**
-- `lightThresholdOn` 必须小于 `lightThresholdOff`
-- 两个值都必须在合理范围内（待确认具体范围）
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| lightThresholdOn | number | 是 | 开灯阈值（lux） |
+| lightThresholdOff | number | 是 | 关灯阈值（lux） |
+
+**校验规则：** `lightThresholdOn` 必须小于 `lightThresholdOff`
 
 **成功响应：** 200
 ```json
@@ -253,14 +478,12 @@ curl -X POST "http://api.example.com/api/devices/batch-control" \
     "deviceId": "lamp_001",
     "lightThresholdOn": 200,
     "lightThresholdOff": 300,
-    "updatedAt": "2026-06-30T10:05:00Z"
+    "updatedAt": "2026-07-02T10:15:00.000Z"
   }
 }
 ```
 
-**错误响应：**
-
-400 - 参数错误
+**错误响应：** 400
 ```json
 {
   "code": 400,
@@ -271,17 +494,61 @@ curl -X POST "http://api.example.com/api/devices/batch-control" \
 
 ---
 
-## 3. 设备模式管理接口
+## 6. 模式管理接口
 
-### 3.1 切换设备控制模式
+### 6.1 获取设备模式
 
-**接口路径：** `PUT /api/devices/:deviceId/mode`
+**接口路径：** `GET /api/devices/:deviceId/mode`
 
-**功能描述：** 切换设备的自动/手动控制模式
+**功能描述：** 获取设备当前的控制模式（自动或手动）
 
 **权限要求：** 管理员、市政人员
 
 **路径参数：**
+
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| deviceId | string | 是 | 设备ID |
+
+**成功响应：** 200
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "deviceId": "lamp_001",
+    "mode": "auto",
+    "updatedAt": "2026-07-01T12:00:00.000Z"
+  }
+}
+```
+
+**错误响应：** 404
+```json
+{
+  "code": 404,
+  "message": "设备不存在",
+  "data": null
+}
+```
+
+---
+
+### 6.2 切换设备模式
+
+**接口路径：** `PUT /api/devices/:deviceId/mode`
+
+**功能描述：** 切换设备的控制模式
+
+| 模式 | 含义 |
+|------|------|
+| `auto` | 自动模式，根据光照阈值自动开关灯 |
+| `manual` | 手动模式，仅响应手动控制指令 |
+
+**权限要求：** 管理员
+
+**路径参数：**
+
 | 参数名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
 | deviceId | string | 是 | 设备ID |
@@ -289,9 +556,13 @@ curl -X POST "http://api.example.com/api/devices/batch-control" \
 **请求体：**
 ```json
 {
-  "mode": "auto"  // "auto"=自动模式, "manual"=手动模式
+  "mode": "manual"
 }
 ```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| mode | string | 是 | `"auto"` 或 `"manual"` |
 
 **成功响应：** 200
 ```json
@@ -300,548 +571,186 @@ curl -X POST "http://api.example.com/api/devices/batch-control" \
   "message": "模式切换成功",
   "data": {
     "deviceId": "lamp_001",
-    "mode": "auto",
-    "updatedAt": "2026-06-30T10:10:00Z"
+    "mode": "manual",
+    "updatedAt": "2026-07-02T10:20:00.000Z"
   }
 }
 ```
 
----
-
-### 3.2 获取设备控制模式
-
-**接口路径：** `GET /api/devices/:deviceId/mode`
-
-**功能描述：** 获取设备当前的控制模式
-
-**权限要求：** 管理员、市政人员
-
-**成功响应：** 200
+**错误响应：** 400
 ```json
 {
-  "code": 200,
-  "message": "success",
-  "data": {
-    "deviceId": "lamp_001",
-    "mode": "auto",  // "auto" 或 "manual"
-    "updatedAt": "2026-06-30T10:10:00Z"
-  }
+  "code": 400,
+  "message": "无效的模式，必须是auto或manual",
+  "data": null
 }
 ```
 
 ---
 
-## 4. 历史数据查询接口
+## 7. 历史数据接口
 
-### 4.1 查询设备历史光照数据
+### 7.1 查询光照历史数据
 
 **接口路径：** `GET /api/devices/:deviceId/light-history`
 
-**功能描述：** 查询指定设备的历史光照强度数据
+**功能描述：** 查询指定设备在特定时间段内的光照强度数据
 
 **权限要求：** 管理员、市政人员
 
 **路径参数：**
+
 | 参数名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
 | deviceId | string | 是 | 设备ID |
 
 **查询参数：**
+
 | 参数名 | 类型 | 必填 | 说明 |
 |--------|------|------|------|
-| range | string | 否 | 快捷时间范围：24h/7d/30d |
-| startTime | string | 否 | 开始时间（ISO 8601格式） |
-| endTime | string | 否 | 结束时间（ISO 8601格式） |
-| granularity | string | 否 | 数据粒度：raw/hourly，默认hourly |
+| startTime | string | 是 | 开始时间（ISO 8601 格式） |
+| endTime | string | 是 | 结束时间（ISO 8601 格式） |
 
-**参数说明：**
-- 如果提供 `range`，则忽略 `startTime` 和 `endTime`
-- 如果不提供 `range`，则必须提供 `startTime` 和 `endTime`
-- `granularity=raw`：返回原始采样数据（仅限最近24小时）
-- `granularity=hourly`：返回小时级聚合数据
+**请求示例：**
+```
+GET /api/devices/lamp_001/light-history?startTime=2026-06-25T00:00:00.000Z&endTime=2026-07-02T00:00:00.000Z
+```
 
 **成功响应：** 200
-
-原始数据格式（granularity=raw）：
 ```json
 {
   "code": 200,
   "message": "success",
   "data": {
     "deviceId": "lamp_001",
-    "granularity": "raw",
-    "range": {
-      "startTime": "2026-06-30T09:00:00Z",
-      "endTime": "2026-06-30T10:00:00Z"
-    },
+    "startTime": "2026-06-25T00:00:00.000Z",
+    "endTime": "2026-07-02T00:00:00.000Z",
+    "aggregation": "raw",
+    "count": 168,
     "records": [
       {
-        "lightIntensity": 250,
-        "timestamp": "2026-06-30T09:00:00Z"
-      },
-      {
-        "lightIntensity": 245,
-        "timestamp": "2026-06-30T09:05:00Z"
-      }
-    ],
-    "total": 12
-  }
-}
-```
-
-聚合数据格式（granularity=hourly）：
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "deviceId": "lamp_001",
-    "granularity": "hourly",
-    "range": {
-      "startTime": "2026-06-23T00:00:00Z",
-      "endTime": "2026-06-30T00:00:00Z"
-    },
-    "records": [
-      {
-        "hourTime": "2026-06-30T09:00:00Z",
-        "avgLightIntensity": 247.5,
-        "maxLightIntensity": 260,
-        "minLightIntensity": 235,
-        "sampleCount": 12
-      },
-      {
-        "hourTime": "2026-06-30T08:00:00Z",
-        "avgLightIntensity": 220.3,
-        "maxLightIntensity": 240,
-        "minLightIntensity": 200,
-        "sampleCount": 12
-      }
-    ],
-    "total": 168  // 7天 × 24小时
-  }
-}
-```
-
-**调用示例：**
-```bash
-# 查询最近24小时的小时级聚合数据
-curl "http://api.example.com/api/devices/lamp_001/light-history?range=24h" \
-  -H "Authorization: Bearer xxx"
-
-# 查询自定义时间范围的原始数据
-curl "http://api.example.com/api/devices/lamp_001/light-history?startTime=2026-06-30T09:00:00Z&endTime=2026-06-30T10:00:00Z&granularity=raw" \
-  -H "Authorization: Bearer xxx"
-```
-
----
-
-### 4.2 查询控制操作历史
-
-**接口路径：** `GET /api/devices/:deviceId/control-logs`
-
-**功能描述：** 查询设备的控制操作历史记录
-
-**权限要求：** 管理员、市政人员
-
-**路径参数：**
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| deviceId | string | 是 | 设备ID |
-
-**查询参数：**
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| page | number | 否 | 页码，默认1 |
-| pageSize | number | 否 | 每页数量，默认20，最大100 |
-| startTime | string | 否 | 开始时间 |
-| endTime | string | 否 | 结束时间 |
-
-**成功响应：** 200
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "logs": [
-      {
-        "id": 12345,
+        "id": 1,
         "deviceId": "lamp_001",
-        "command": "on",
-        "status": "success",
-        "operatorId": 100,
-        "operatorName": "张三",
-        "requestTime": "2026-06-30T10:00:00Z",
-        "responseTime": "2026-06-30T10:00:02Z",
-        "resultMessage": "开灯成功"
-      },
-      {
-        "id": 12344,
-        "deviceId": "lamp_001",
-        "command": "off",
-        "status": "failed",
-        "operatorId": 100,
-        "operatorName": "张三",
-        "requestTime": "2026-06-30T09:50:00Z",
-        "responseTime": "2026-06-30T09:50:10Z",
-        "resultMessage": "控制超时"
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "pageSize": 20,
-      "total": 156,
-      "totalPages": 8
-    }
-  }
-}
-```
-
----
-
-## 5. 告警管理接口
-
-### 5.1 查询告警列表
-
-**接口路径：** `GET /api/alarms`
-
-**功能描述：** 查询告警记录列表
-
-**权限要求：** 管理员、市政人员
-
-**查询参数：**
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| page | number | 否 | 页码，默认1 |
-| pageSize | number | 否 | 每页数量，默认20 |
-| status | string | 否 | 告警状态：active/resolved，默认all |
-| alarmType | string | 否 | 告警类型：offline/control_failed/frequent_switch |
-| alarmLevel | string | 否 | 告警等级：low/medium/high |
-| deviceId | string | 否 | 筛选指定设备 |
-| startTime | string | 否 | 开始时间 |
-| endTime | string | 否 | 结束时间 |
-
-**成功响应：** 200
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "alarms": [
-      {
-        "id": 1001,
-        "deviceId": "lamp_001",
-        "deviceName": "路灯001",
-        "alarmType": "offline",
-        "alarmLevel": "high",
-        "status": "active",
-        "message": "设备离线超过6小时",
-        "createdAt": "2026-06-30T04:00:00Z",
-        "handledAt": null,
-        "handlerId": null,
-        "handlerName": null
-      },
-      {
-        "id": 1000,
-        "deviceId": "lamp_002",
-        "deviceName": "路灯002",
-        "alarmType": "control_failed",
-        "alarmLevel": "medium",
-        "status": "resolved",
-        "message": "控制指令执行失败",
-        "createdAt": "2026-06-30T09:00:00Z",
-        "handledAt": "2026-06-30T09:30:00Z",
-        "handlerId": 100,
-        "handlerName": "张三"
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "pageSize": 20,
-      "total": 45,
-      "totalPages": 3
-    },
-    "statistics": {
-      "activeCount": 12,
-      "resolvedCount": 33,
-      "highLevelCount": 3,
-      "mediumLevelCount": 8,
-      "lowLevelCount": 1
-    }
-  }
-}
-```
-
----
-
-### 5.2 查询告警详情
-
-**接口路径：** `GET /api/alarms/:alarmId`
-
-**功能描述：** 查询指定告警的详细信息
-
-**权限要求：** 管理员、市政人员
-
-**路径参数：**
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| alarmId | number | 是 | 告警ID |
-
-**成功响应：** 200
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "id": 1001,
-    "deviceId": "lamp_001",
-    "deviceName": "路灯001",
-    "alarmType": "offline",
-    "alarmLevel": "high",
-    "status": "active",
-    "message": "设备离线超过6小时",
-    "createdAt": "2026-06-30T04:00:00Z",
-    "handledAt": null,
-    "handlerId": null,
-    "handlerName": null,
-    "history": [
-      {
-        "level": "high",
-        "message": "设备离线超过6小时",
-        "timestamp": "2026-06-30T10:00:00Z"
-      },
-      {
-        "level": "medium",
-        "message": "设备离线超过1小时",
-        "timestamp": "2026-06-30T05:00:00Z"
-      },
-      {
-        "level": "low",
-        "message": "设备离线",
-        "timestamp": "2026-06-30T04:00:00Z"
+        "lightIntensity": 350,
+        "timestamp": "2026-07-02T09:00:00.000Z"
       }
     ]
   }
 }
 ```
 
-**错误响应：**
+**LightDataRecord 字段说明：**
 
-404 - 告警不存在
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| id | number | 记录ID |
+| deviceId | string | 设备ID |
+| lightIntensity | number | 光照强度（lux） |
+| timestamp | datetime | 记录时间 |
+
+**错误响应：** 400
 ```json
 {
-  "code": 404,
-  "message": "告警记录不存在",
+  "code": 400,
+  "message": "startTime和endTime参数必填",
   "data": null
 }
 ```
 
 ---
 
-### 5.3 标记告警已处理
+## 📊 数据模型总览
 
-**接口路径：** `PUT /api/alarms/:alarmId/resolve`
-
-**功能描述：** 标记告警为已处理状态
-
-**权限要求：** 管理员
-
-**路径参数：**
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| alarmId | number | 是 | 告警ID |
-
-**请求体：**
-```json
-{
-  "note": "已现场检修完成"  // 可选的处理备注
+### Device（设备）
+```typescript
+interface Device {
+  id: string              // 设备ID，如 "lamp_001"
+  name: string            // 设备名称
+  status: 'online' | 'offline'
+  mode: 'auto' | 'manual'
+  currentState: 'on' | 'off'
+  lastHeartbeat: Date
 }
 ```
 
-**成功响应：** 200
-```json
-{
-  "code": 200,
-  "message": "告警已标记为已处理",
-  "data": {
-    "id": 1001,
-    "status": "resolved",
-    "handledAt": "2026-06-30T10:30:00Z",
-    "handlerId": 100,
-    "handlerName": "张三"
-  }
+### ThresholdConfig（阈值配置）
+```typescript
+interface ThresholdConfig {
+  deviceId: string
+  lightThresholdOn: number   // 开灯阈值
+  lightThresholdOff: number  // 关灯阈值
+  updatedAt: Date
 }
 ```
 
----
+### ControlLog（控制日志）
+```typescript
+interface ControlLog {
+  id: number
+  deviceId: string
+  command: 'on' | 'off'
+  status: 'success' | 'failed' | 'timeout'
+  operatorId: number
+  operatorName: string
+  requestTime: Date
+  responseTime: Date | null
+  resultMessage: string
+}
+```
 
-## 6. 数据统计接口
-
-### 6.1 获取设备运行统计
-
-**接口路径：** `GET /api/devices/:deviceId/statistics`
-
-**功能描述：** 获取设备的运行统计数据
-
-**权限要求：** 管理员、市政人员
-
-**路径参数：**
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| deviceId | string | 是 | 设备ID |
-
-**查询参数：**
-| 参数名 | 类型 | 必填 | 说明 |
-|--------|------|------|------|
-| range | string | 否 | 时间范围：7d/30d，默认7d |
-
-**成功响应：** 200
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "deviceId": "lamp_001",
-    "range": "7d",
-    "statistics": {
-      "onlineRate": 98.5,              // 在线率（%）
-      "totalOnlineHours": 165.6,       // 在线时长（小时）
-      "totalOfflineHours": 2.4,        // 离线时长（小时）
-      "controlSuccessRate": 99.2,      // 控制成功率（%）
-      "totalControlCount": 125,        // 总控制次数
-      "avgLightIntensity": 245.8,      // 平均光照强度
-      "maxLightIntensity": 850,        // 最大光照强度
-      "minLightIntensity": 50          // 最小光照强度
-    }
-  }
+### LightDataRecord（光照数据）
+```typescript
+interface LightDataRecord {
+  id: number
+  deviceId: string
+  lightIntensity: number
+  timestamp: Date
 }
 ```
 
 ---
 
-### 6.2 获取所有设备统计概览
+## 🔌 MQTT 通信协议
 
-**接口路径：** `GET /api/statistics/overview`
+### 控制命令下发
 
-**功能描述：** 获取所有设备的统计汇总
-
-**权限要求：** 管理员、市政人员
-
-**请求参数：** 无
-
-**成功响应：** 200
+- **Topic:** `devices/{deviceId}/control`
+- **Payload:**
 ```json
 {
-  "code": 200,
-  "message": "成功",
-  "data": [
-    {
-      "deviceId": "lamp_001",
-      "deviceName": "路灯001",
-      "avgLightIntensity": 245.6,
-      "maxLightIntensity": 850,
-      "minLightIntensity": 50,
-      "totalRecords": 1440
-    },
-    {
-      "deviceId": "lamp_002",
-      "deviceName": "路灯002",
-      "avgLightIntensity": 238.2,
-      "maxLightIntensity": 820,
-      "minLightIntensity": 45,
-      "totalRecords": 1438
-    }
-  ]
+  "cmd": "switch",
+  "value": "on",
+  "requestId": "uuid-v4",
+  "timestamp": 1751436000000
 }
 ```
 
-**错误响应：**
+### 硬件响应
 
-500 - 服务器错误
+- **Topic:** `devices/{deviceId}/control/response`
+- **监听通配符:** `devices/+/control/response`
+- **设备过滤:** 仅处理 `lamp_` 前缀的设备
+- **Payload:**
 ```json
 {
-  "code": 500,
-  "message": "统计数据计算失败",
-  "data": null
+  "requestId": "uuid-v4",
+  "success": true,
+  "message": "执行成功"
 }
 ```
 
-**示例：**
-```bash
-curl -X GET "http://localhost:3000/api/statistics/overview" \
-  -H "Content-Type: application/json"
-```
+### 硬件模拟模式
+
+设置环境变量 `MQTT_SIMULATE_HARDWARE=true` 后，后端会模拟硬件响应：
+- 成功率：90%
+- 响应延迟：1~3 秒随机
 
 ---
 
-## 7. 系统健康检查接口
+## 📝 变更记录
 
-### 7.1 健康检查
-
-**接口路径：** `GET /api/health`
-
-**功能描述：** 检查服务健康状态
-
-**权限要求：** 无（公开接口）
-
-**成功响应：** 200
-```json
-{
-  "code": 200,
-  "message": "healthy",
-  "data": {
-    "status": "up",
-    "timestamp": "2026-06-30T10:30:00Z",
-    "services": {
-      "database": "up",
-      "redis": "up",
-      "mqtt": "up"
-    }
-  }
-}
-```
-
----
-
-## 📝 附录
-
-### A. 告警类型枚举
-| 值 | 说明 |
-|----|------|
-| offline | 设备离线 |
-| control_failed | 控制失败 |
-| frequent_switch | 频繁开关 |
-
-### B. 告警等级枚举
-| 值 | 说明 |
-|----|------|
-| low | 低级告警 |
-| medium | 中级告警 |
-| high | 高级告警 |
-
-### C. 设备控制模式枚举
-| 值 | 说明 |
-|----|------|
-| auto | 自动模式（执行光照阈值联动） |
-| manual | 手动模式（不执行自动规则） |
-
-### D. 数据粒度枚举
-| 值 | 说明 |
-|----|------|
-| raw | 原始采样数据 |
-| hourly | 小时级聚合数据 |
-| daily | 天级聚合数据 |
-
----
-
-## 🔄 变更记录
-
-| 版本 | 日期 | 变更内容 | 变更人 |
-|------|------|----------|--------|
-| v1.0 | 2026-06-30 | 初始版本 | 任务3团队 |
-| v2.0 | 2026-06-30 | 更新Base URL为localhost:3000；添加Mock认证说明；统一接口路径添加/api前缀；添加统计概览接口；删除未实现的导出接口；更新数据粒度枚举 | 任务3团队 |
-
----
-
-## 📮 反馈与建议
-
-如有问题或建议，请联系任务3负责人。
+| 版本 | 日期 | 说明 |
+|------|------|------|
+| v3.0 | 2026-07-02 | MVP 精简版：删除告警管理、数据统计、全局配置接口，保留 11 个核心接口 |
+| v2.0 | 2026-06-30 | 完整版：14 个接口，含告警、统计、配置等全部功能 |
+| v1.0 | 2026-06-28 | 初始版本 |
