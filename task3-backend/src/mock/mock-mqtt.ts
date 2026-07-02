@@ -167,7 +167,7 @@ export class MockMqttClient {
             payload: message,
             timestamp: new Date(),
           });
-
+          if (this.messageHistory.length > 1000) this.messageHistory.shift();
           // 模拟硬件控制反馈（仅在开启模拟模式时）
           if (topic.includes('/control') && this.isSimulateEnabled()) {
             this.simulateHardwareResponse(topic, message);
