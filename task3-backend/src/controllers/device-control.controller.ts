@@ -148,6 +148,63 @@ export class DeviceControlController {
   }
 
   /**
+   * 获取所有设备列表
+   * GET /api/devices
+   */
+  static async getAllDevices(req: Request, res: Response): Promise<void> {
+    try {
+      const devices = controlService.getAllDevices();
+
+      res.status(200).json({
+        code: 200,
+        message: 'success',
+        data: devices
+      });
+    } catch (error) {
+      console.error('Get all devices error:', error);
+      res.status(500).json({
+        code: 500,
+        message: '服务器内部错误',
+        data: null
+      });
+    }
+  }
+
+  /**
+   * 获取单个设备详情
+   * GET /api/devices/:deviceId
+   */
+  static async getDeviceById(req: Request, res: Response): Promise<void> {
+    try {
+      const { deviceId } = req.params;
+
+      const device = controlService.getDeviceById(deviceId);
+
+      if (!device) {
+        res.status(404).json({
+          code: 404,
+          message: '设备不存在',
+          data: null
+        });
+        return;
+      }
+
+      res.status(200).json({
+        code: 200,
+        message: 'success',
+        data: device
+      });
+    } catch (error) {
+      console.error('Get device by id error:', error);
+      res.status(500).json({
+        code: 500,
+        message: '服务器内部错误',
+        data: null
+      });
+    }
+  }
+
+  /**
    * 获取设备控制历史
    * GET /api/devices/:deviceId/control-logs
    */
@@ -345,6 +402,61 @@ export class DeviceControlController {
       });
     } catch (error) {
       console.error('Set mode error:', error);
+      res.status(500).json({
+        code: 500,
+        message: '服务器内部错误',
+        data: null
+      });
+    }
+  }
+
+  /**
+   * 获取设备光照历史数据
+   * GET /api/devices/:deviceId/light-history
+   */
+  static async getLightHistory(req: Request, res: Response): Promise<void> {
+    try {
+      const { deviceId } = req.params;
+      const { startTime, endTime } = req.query;
+
+      // 参数验证
+      if (!startTime || !endTime) {
+        res.status(400).json({
+          code: 400,
+          message: 'startTime和endTime参数必填',
+          data: null
+        });
+        return;
+      }
+
+      const start = new Date(startTime as string);
+      const end = new Date(endTime as string);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        res.status(400).json({
+          code: 400,
+          message: '无效的时间格式',
+          data: null
+        });
+        return;
+      }
+
+      const records = controlService.getLightHistory(deviceId, start, end);
+
+      res.status(200).json({
+        code: 200,
+        message: 'success',
+        data: {
+          deviceId,
+          startTime: start,
+          endTime: end,
+          aggregation: 'raw',
+          count: records.length,
+          records
+        }
+      });
+    } catch (error) {
+      console.error('Get light history error:', error);
       res.status(500).json({
         code: 500,
         message: '服务器内部错误',

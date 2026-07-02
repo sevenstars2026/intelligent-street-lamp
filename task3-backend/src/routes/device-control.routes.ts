@@ -7,6 +7,15 @@ import { DeviceControlController } from '../controllers/device-control.controlle
 
 const router = Router();
 
+// 获取所有设备列表
+router.get('/devices', DeviceControlController.getAllDevices);
+
+// 获取单个设备详情
+router.get('/devices/:deviceId', DeviceControlController.getDeviceById);
+
+// 获取设备光照历史
+router.get('/devices/:deviceId/light-history', DeviceControlController.getLightHistory);
+
 // 控制单个路灯
 router.post('/devices/:deviceId/control', DeviceControlController.controlDevice);
 
