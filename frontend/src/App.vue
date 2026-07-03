@@ -54,6 +54,9 @@
           <div class="page-title">{{ currentPageTitle }}</div>
           <div class="header-right">
             <span class="live-indicator" v-if="simulating"><span class="blink-dot"></span>实时数据接收中</span>
+            <span class="health-status" v-if="systemHealth" title="系统健康状态" style="font-size:12px;color:#666">
+              DB:{{ systemHealth.services.database }} / MQTT:{{ systemHealth.services.mqtt }}
+            </span>
             <span>{{ currentUser.nickname }}</span>
             <button class="logout-btn" @click="logout">退出登录</button>
           </div>
@@ -75,28 +78,28 @@
                 <div class="stat-icon">☀️</div>
                 <div>
                   <div class="stat-label">当前光照强度</div>
-                  <div class="stat-val live-data" :key="currentLight + refreshKey">{{ currentLight }} <span class="stat-unit">lux</span></div>
+                  <div class="stat-val live-data" :key="displayCurrentLight + refreshKey">{{ displayCurrentLight }} <span class="stat-unit">lux</span></div>
                 </div>
               </div>
               <div class="stat-card bg-green">
                 <div class="stat-icon">💡</div>
                 <div>
                   <div class="stat-label">在线设备</div>
-                  <div class="stat-val">{{ onlineCount }} <span class="stat-unit">/ {{ devices.length }}</span></div>
+                  <div class="stat-val">{{ displayOnlineCount }} <span class="stat-unit">/ {{ displayTotalDevices }}</span></div>
                 </div>
               </div>
               <div class="stat-card bg-orange">
                 <div class="stat-icon">🔔</div>
                 <div>
                   <div class="stat-label">未处理告警</div>
-                  <div class="stat-val">{{ pendingAlertCount }}</div>
+                  <div class="stat-val">{{ displayPendingAlerts }}</div>
                 </div>
               </div>
-              <div class="stat-card" :class="currentLight < thresholdLow ? 'bg-red' : 'bg-blue'">
-                <div class="stat-icon">{{ currentLight < thresholdLow ? '🌙' : '☀️' }}</div>
+              <div class="stat-card" :class="displayCurrentLight < displayThresholdLow ? 'bg-red' : 'bg-blue'">
+                <div class="stat-icon">{{ displayCurrentLight < displayThresholdLow ? '🌙' : '☀️' }}</div>
                 <div>
                   <div class="stat-label">光照状态</div>
-                  <div class="stat-val" style="font-size:18px">{{ currentLight < thresholdLow ? '光照不足<br>建议开灯' : '光照充足' }}</div>
+                  <div class="stat-val" style="font-size:18px">{{ displayCurrentLight < displayThresholdLow ? '光照不足 建议开灯' : '光照充足' }}</div>
                 </div>
               </div>
             </div>
@@ -239,7 +242,10 @@
                       <td>{{ d.location }}</td>
                       <td><span :class="(d.online ? true : false) ? 'tag tag-online' : 'tag tag-offline'">{{ d.online ? '在线' : '离线' }}</span></td>
                       <td>{{ formatTime(d.bind_time || d.bindTime) }}</td>
-                      <td><button class="btn btn-danger btn-sm" @click="unbindDevice(d)">解绑</button></td>
+                      <td>
+                        <button class="btn btn-success btn-sm" @click="sendHeartbeat(d.device_id || d.deviceId)">心跳</button>
+                        <button class="btn btn-danger btn-sm" @click="unbindDevice(d)" style="margin-left:6px">解绑</button>
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -481,7 +487,7 @@ import { login, getDevices, addDevice as addDeviceApi, unbindDevice as unbindDev
          getCurrentLight, getLightHistory, recordLight,
          getAlerts, handleAlert as handleAlertApi,
          getConfig, updateConfig,
-         controlDevice, getDashboardStats,
+         controlDevice, getDashboardStats, getHealth, heartbeat,
          batchControl, getDeviceThreshold, setDeviceThreshold,
          getDeviceMode, setDeviceMode, getControlLogs,
          getDeviceLightHistory, getDeviceStatistics, getStatisticsOverview } from './utils/api.ts'
@@ -577,6 +583,10 @@ let chartInstance = null
 // 其他状态
 const handlingAlert = ref(false)
 
+// 后端已实现但此前未使用接口的数据
+const dashboardStats = ref(null)
+const systemHealth = ref(null)
+
 // ==================== 计算属性 ====================
 
 const menuItems = computed(() => {
@@ -620,6 +630,13 @@ const controlDeviceName = computed(() => {
   const d = devices.value.find(d => (d.device_id || d.deviceId) === controlDeviceId.value)
   return d ? (d.device_name || d.deviceName) : '—'
 })
+
+// 优先使用后端 /dashboard/stats 返回的数据，未返回时使用本地计算值
+const displayCurrentLight = computed(() => dashboardStats.value?.currentLight ?? currentLight.value)
+const displayThresholdLow = computed(() => dashboardStats.value?.thresholdLow ?? thresholdLow.value)
+const displayOnlineCount = computed(() => dashboardStats.value?.onlineDevices ?? onlineCount.value)
+const displayTotalDevices = computed(() => dashboardStats.value?.totalDevices ?? devices.value.length)
+const displayPendingAlerts = computed(() => dashboardStats.value?.pendingAlerts ?? pendingAlertCount.value)
 
 // ==================== 方法 ====================
 
@@ -695,6 +712,8 @@ async function loadAllData() {
       lightThreshold.high = thresholdHigh.value
       controlMode.value = configRes.data.control_mode || 'auto'
     }
+
+    await Promise.all([loadDashboardStats(), loadHealth()])
   } catch (e) { console.error(e) }
 }
 
@@ -704,6 +723,30 @@ async function loadCurrentLight() {
     currentLight.value = Math.round(res.data?.value || 320)
     refreshKey.value++
   } catch (e) { /* ignore */ }
+}
+
+async function loadDashboardStats() {
+  try {
+    const res = await getDashboardStats()
+    dashboardStats.value = res.data || null
+  } catch (e) { console.error(e) }
+}
+
+async function loadHealth() {
+  try {
+    const res = await getHealth()
+    systemHealth.value = res.data || null
+  } catch (e) { console.error(e) }
+}
+
+async function sendHeartbeat(deviceId) {
+  try {
+    await heartbeat(deviceId)
+    showToast('心跳已发送，设备已恢复在线', 'success')
+    await loadAllData()
+  } catch (e) {
+    showToast('心跳发送失败', 'error')
+  }
 }
 
 async function loadAlerts() {
@@ -847,15 +890,23 @@ async function doBatchControl(command) {
 }
 
 // ---- 设备独立阈值与模式 ----
-function openThresholdModal(d) {
+async function openThresholdModal(d) {
+  const deviceId = d.device_id || d.deviceId
   Object.assign(deviceThresholdModal, {
     show: true,
-    deviceId: d.device_id || d.deviceId,
+    deviceId,
     deviceName: d.device_name || d.deviceName,
     low: d.threshold_on ?? 100,
     high: d.threshold_off ?? 800,
     saving: false
   })
+  try {
+    const res = await getDeviceThreshold(deviceId)
+    if (res.data) {
+      deviceThresholdModal.low = res.data.lightThresholdOn ?? deviceThresholdModal.low
+      deviceThresholdModal.high = res.data.lightThresholdOff ?? deviceThresholdModal.high
+    }
+  } catch (_) {}
 }
 
 async function saveDeviceThreshold() {
@@ -879,14 +930,21 @@ async function saveDeviceThreshold() {
   }
 }
 
-function openModeModal(d) {
+async function openModeModal(d) {
+  const deviceId = d.device_id || d.deviceId
   Object.assign(deviceModeModal, {
     show: true,
-    deviceId: d.device_id || d.deviceId,
+    deviceId,
     deviceName: d.device_name || d.deviceName,
     mode: d.mode || 'auto',
     saving: false
   })
+  try {
+    const res = await getDeviceMode(deviceId)
+    if (res.data) {
+      deviceModeModal.mode = res.data.mode || deviceModeModal.mode
+    }
+  } catch (_) {}
 }
 
 async function saveDeviceMode() {
