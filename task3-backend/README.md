@@ -1,0 +1,184 @@
+# 任务3：后端业务逻辑层
+
+智慧路灯系统 Express + TypeScript 后端服务，连接真实 MySQL 和 MQTT Broker，提供 11 个 MVP REST API。
+
+---
+
+## 技术栈
+
+- **运行时**: Node.js + TypeScript
+- **框架**: Express 4
+- **数据库**: MySQL 8（mysql2/promise 连接池）
+- **消息协议**: MQTT（mqtt.js 真实 Broker）
+- **开发工具**: ts-node-dev（热重载）
+
+---
+
+## 快速开始
+
+### 1. 安装
+
+```bash
+npm install
+```
+
+### 2. 配置
+
+```bash
+cp .env.example .env
+```
+
+编辑 `.env`：
+
+```env
+PORT=3000
+DB_HOST=47.108.58.107
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_password
+DB_NAME=dream20
+MQTT_BROKER_URL=mqtt://47.108.58.107:1883
+MQTT_SIMULATE_HARDWARE=false   # 使用真实硬件（不模拟）
+```
+
+### 3. 启动
+
+```bash
+npm run dev
+```
+
+启动后输出：
+
+```
+✓ MySQL Database connected
+✓ MQTT ✅ Connected to broker
+[MQTT] Subscribed to topic: devices/+/control/response
+[MQTT] Subscribed to topic: devices/+/data
+[MQTT] Subscribed to topic: devices/+/heartbeat
+🚀 Server running on port 3000
+```
+
+### 4. 验证
+
+```bash
+curl http://localhost:3000/api/health
+# → {"code":200,"message":"healthy","data":{"status":"up",...}}
+```
+
+---
+
+## 项目结构
+
+```
+src/
+├── index.ts                          # 主入口（Express + 中间件 + 启动）
+├── config/
+│   └── database.ts                   # MySQL 连接池配置
+├── types/
+│   └── database.types.ts             # 全部 TypeScript 数据模型
+├── controllers/
+│   └── device-control.controller.ts  # HTTP 请求处理、参数校验
+├── services/
+│   ├── device-control.service.ts     # 设备控制业务 + MQTT 订阅
+│   └── database.service.ts          # 全部数据库 CRUD 操作
+├── routes/
+│   └── device-control.routes.ts      # 路由定义（11 个接口）
+└── mock/
+    └── mock-mqtt.ts                  # MQTT 客户端（连接真实 Broker）
+```
+
+---
+
+## API 接口（11 个 MVP）
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/health` | 健康检查 |
+| GET | `/api/devices` | 获取所有设备 |
+| GET | `/api/devices/:deviceId` | 获取单个设备 |
+| POST | `/api/devices/:deviceId/control` | 控制开关灯 |
+| POST | `/api/devices/batch-control` | 批量控制 |
+| GET | `/api/devices/:deviceId/control-logs` | 控制日志 |
+| GET | `/api/devices/:deviceId/light-history` | 光照历史 |
+| GET | `/api/devices/:deviceId/threshold` | 获取阈值 |
+| POST | `/api/devices/:deviceId/threshold` | 设置阈值 |
+| GET | `/api/devices/:deviceId/mode` | 获取控制模式 |
+| PUT | `/api/devices/:deviceId/mode` | 切换模式 |
+
+所有接口返回统一格式 `{ code, message, data }`。
+
+---
+
+## MQTT 消息架构
+
+| Topic | 方向 | 处理 |
+|-------|------|------|
+| `devices/{id}/control` | 后端→硬件 | 下发开/关灯指令 |
+| `devices/{id}/control/response` | 硬件→后端 | 控制结果反馈，更新 control_logs 和设备状态 |
+| `devices/{id}/data` | 硬件→后端 | 光照数据上报 → 写入 `light_data` 表 |
+| `devices/{id}/heartbeat` | 硬件→后端 | 心跳上报 → 更新 `devices.last_heartbeat` 和在线状态 |
+
+控制指令格式：
+```json
+{"cmd": "switch", "value": "on|off", "requestId": "uuid", "timestamp": 123456789}
+```
+
+硬件数据上报支持 `lightIntensity` / `lux` / `value` 多种字段名。
+
+---
+
+## 数据库表
+
+| 表名 | 用途 |
+|------|------|
+| `devices` | 设备信息（ID、名称、状态、模式、心跳） |
+| `thresholds` | 光照阈值配置 |
+| `control_logs` | 控制指令操作记录 |
+| `light_data` | 光照数据原始记录 |
+| `alarms` | 告警记录（表结构就绪，服务待实现） |
+| `aggregated_data` | 聚合统计数据（表结构就绪） |
+
+---
+
+## 接口示例
+
+### 控制开灯
+
+```bash
+curl -X POST http://localhost:3000/api/devices/lamp_001/control \
+  -H "Content-Type: application/json" \
+  -d '{"command": "on"}'
+```
+
+响应：
+```json
+{"code":200,"message":"控制成功","data":{"deviceId":"lamp_001","command":"on","status":"success"}}
+```
+
+### 查询光照历史
+
+```bash
+curl "http://localhost:3000/api/devices/lamp_001/light-history?startTime=2026-07-01T00:00:00Z&endTime=2026-07-02T00:00:00Z"
+```
+
+### 设置阈值
+
+```bash
+curl -X POST http://localhost:3000/api/devices/lamp_001/threshold \
+  -H "Content-Type: application/json" \
+  -d '{"lightThresholdOn": 150, "lightThresholdOff": 600}'
+```
+
+---
+
+## 认证
+
+当前使用 Mock JWT 中间件，所有请求自动注入 `req.user = { id: 1, name: '测试用户', role: 'admin' }`，无需真实 token。
+
+---
+
+## 相关文档
+
+- [../README.md](../README.md) — 项目总览
+- [../前端使用指南.md](../前端使用指南.md) — 前端完整使用文档
+- [../任务3_API接口设计文档.md](../任务3_API接口设计文档.md) — API 详细规范
