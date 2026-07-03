@@ -2,21 +2,25 @@
  * MySQL 数据库初始化脚本
  * 运行: npm run init-db
  */
+import 'dotenv/config'
 import mysql from 'mysql2/promise'
 
 const DB_CONFIG = {
-    host: '47.108.58.107',
-    port: 3306,
-    user: 'root',
-    password: 'c0765083cd3f57ab',
+    host: process.env.DB_HOST || '127.0.0.1',
+    port: parseInt(process.env.DB_PORT || '3306', 10),
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
     charset: 'utf8mb4' as const
 }
 
-const DB_NAME = 'dream23-28'
+const DB_NAME = process.env.DB_NAME || 'smart_street_light'
 
 async function initDB() {
     const conn = await mysql.createConnection(DB_CONFIG)
-    console.log('✅ 已连接到 MySQL 服务器')
+    console.log(`✅ 已连接到 MySQL 服务器 ${DB_CONFIG.host}:${DB_CONFIG.port}`)
+
+    const [currentUserRows] = await conn.query('SELECT CURRENT_USER() as current_user')
+    console.log(`✅ 当前连接用户: ${(currentUserRows as any[])[0]?.current_user || DB_CONFIG.user}`)
 
     await conn.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci`)
     console.log(`✅ 数据库 ${DB_NAME} 已就绪`)

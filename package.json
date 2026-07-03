@@ -1,0 +1,11 @@
+{
+  "name": "smart-street-light-workspace",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix server run build && npm --prefix frontend run build",
+    "build:server": "npm --prefix server run build",
+    "build:frontend": "npm --prefix frontend run build",
+    "dev:server": "npm --prefix server run dev",
+    "dev:frontend": "npm --prefix frontend run dev"
+  }
+}

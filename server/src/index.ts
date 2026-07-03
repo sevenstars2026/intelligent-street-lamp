@@ -5,7 +5,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import mqtt from 'mqtt'
 import mysql from 'mysql2/promise'
-import { initPool, getPool, DB_CONFIG } from './services/db.js'
+import { initPool, getPool, DB_CONFIG, isSQLite } from './services/db.js'
 import { alarmEngine, automationEngine, startScheduler, stopScheduler } from './services/scheduler.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -41,15 +41,17 @@ function initMqtt(): void {
 // 数据库初始化
 // ============================================
 async function initDB() {
-    const tmpConn = await mysql.createConnection({
-        host: DB_CONFIG.host,
-        port: DB_CONFIG.port,
-        user: DB_CONFIG.user,
-        password: DB_CONFIG.password,
-        charset: 'utf8mb4'
-    })
-    await tmpConn.query(`CREATE DATABASE IF NOT EXISTS \`${DB_CONFIG.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci`)
-    await tmpConn.end()
+    if (!isSQLite()) {
+        const tmpConn = await mysql.createConnection({
+            host: DB_CONFIG.host,
+            port: DB_CONFIG.port,
+            user: DB_CONFIG.user,
+            password: DB_CONFIG.password,
+            charset: 'utf8mb4'
+        })
+        await tmpConn.query(`CREATE DATABASE IF NOT EXISTS \`${DB_CONFIG.database}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci`)
+        await tmpConn.end()
+    }
 
     await initPool()
     const pool = getPool()
@@ -127,7 +129,7 @@ async function initDB() {
             ('threshold_low', '100', '光照下限阈值(lux)'), ('threshold_high', '800', '光照上限阈值(lux)'), ('control_mode', 'auto', '当前控制模式')`)
         console.log('✅ 初始数据导入完成')
     }
-    console.log('✅ MySQL 数据库就绪')
+    console.log(`✅ ${isSQLite() ? 'SQLite' : 'MySQL'} 数据库就绪`)
 }
 
 // ============================================
