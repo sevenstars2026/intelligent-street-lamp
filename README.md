@@ -1,196 +1,173 @@
-# 智慧路灯系统 - 项目总览
+# 智慧路灯管理系统
 
-## 📋 项目介绍
+**项目状态：** MVP 运行中 | **最后更新：** 2026-07-02
 
-**项目名称：** 智慧路灯管理系统  
-**项目阶段：** 任务3后端业务逻辑层  
-**开发时间：** 2026-06-30  
-**项目状态：** ✅ 100%完成，可立即交付
-
-智慧路灯系统是一套完整的物联网解决方案，用于远程管理和控制路灯，实现自动化照明控制、设备监控、数据分析等功能。
+基于 Vue 3 + Express + MySQL + MQTT 的智能路灯 IoT 管理平台，支持远程开关控制、光照数据采集、设备监控和 AI 智能问答。
 
 ---
 
-## 🎯 项目目标
-
-1. **设备控制** - 实现路灯的远程开关控制
-2. **自动联动** - 根据光照强度自动开关路灯
-3. **实时监控** - 监控设备在线状态和控制结果
-4. **告警通知** - 设备离线和故障自动告警
-5. **数据分析** - 统计和分析历史数据
-
----
-
-## 📁 项目结构
+## 系统架构
 
 ```
-project04/
-├── README.md                           # 项目总览（本文件）
-├── 前端对接指南.md                      
-├── 任务3_API接口设计文档.md             # 完整API文档（14个接口）
-│
-└── task3-backend/                      # 后端项目代码
-    ├── src/
-    │   ├── controllers/                # 控制器（4个）
-    │   ├── services/                   # 业务逻辑（6个服务）
-    │   ├── routes/                     # 路由配置（3个）
-    │   ├── utils/                      # 算法（3个）
-    │   ├── mock/                       # Mock服务（3个）
-    │   └── index.ts                    # 主入口
-    ├── package.json
-    ├── tsconfig.json
-    └── README.md
+┌──────────────────────┐     ┌──────────────────────┐
+│   Vue 3 前端 (:5173)  │────▶│  Express 后端 (:3000)  │
+│   Vite + ECharts      │     │  TypeScript           │
+│   Axios + 响应拦截     │     │  Mock JWT 认证         │
+└──────────────────────┘     └──────────┬───────────┘
+                                        │
+                           ┌────────────┼────────────┐
+                           ▼            ▼            ▼
+                      ┌─────────┐ ┌─────────┐ ┌─────────┐
+                      │  MySQL  │ │  MQTT   │ │ MaxKB AI│
+                      │ 远程DB  │ │ Broker  │ │ :8080   │
+                      └─────────┘ └────┬────┘ └─────────┘
+                                       │
+                                  ┌────▼────┐
+                                  │ 硬件设备  │
+                                  │ lamp_xxx │
+                                  └─────────┘
 ```
 
 ---
 
-## 🚀 快速开始
+## 功能概览
 
-### 1. 启动服务
+| 页面 | 功能 | 状态 |
+|------|------|------|
+| 数据总览 | 设备状态卡片、7天光照趋势图、设备列表 | ✅ |
+| 设备控制 | 单灯开关、批量控制、阈值/模式设置 | ✅ |
+| 设备管理 | 设备只读列表、独立阈值和模式弹窗 | ✅ |
+| 告警日志 | 占位（后续版本开放） | ⏳ |
+| 控制日志 | 按设备查询控制指令历史 | ✅ |
+| 历史数据 | 按时间范围查询光照数据曲线 | ✅ |
+| 统计概览 | 设备统计（总数/在线/模式/亮灯） | ✅ |
+| AI 问答 | MaxKB 浮窗对话（全局右下角 💬 按钮） | ✅ |
+
+---
+
+## 快速开始
+
+### 环境要求
+
+- Node.js >= 18
+- npm >= 9
+- 可访问远程 MySQL（47.108.58.107）和 MQTT Broker
+
+### 1. 启动后端
 
 ```bash
 cd task3-backend
+cp .env.example .env   # 编辑 .env 配置数据库和MQTT
 npm install
-npm run dev
+npm run dev             # → http://localhost:3000
 ```
 
-### 2. 测试接口
+### 2. 启动前端
 
 ```bash
-# 健康检查
-curl http://localhost:3000/api/health
-
-# 控制路灯
-curl -X POST http://localhost:3000/api/devices/lamp_001/control \
-  -H "Content-Type: application/json" \
-  -d '{"command": "on"}'
+cd task3-frontend
+npm install
+npm run dev             # → http://localhost:5173
 ```
 
-### 3. 查看文档
+前端通过 Vite proxy 将 `/api` 请求代理到 `localhost:3000`。
 
-- **API文档：** `任务3_API接口设计文档.md`
-- **前端对接：** `前端对接指南.md`
-- **后端代码：** `task3-backend/README.md`
+### 3. 登录
 
----
-
-## 📊 功能完成情况
-
-### ✅ 已完成（100%）
-
-**核心功能模块（9个）：**
-
-- ✅ **设备控制服务** - 单个/批量控制，10秒超时，日志记录
-- ✅ **阈值管理** - 获取/设置光照阈值
-- ✅ **设备模式管理** - 自动/手动模式切换
-- ✅ **告警服务** - 离线检测、告警升级、告警管理
-- ✅ **自动化规则引擎** - 光照联动自动控制，5次采样4次触发
-- ✅ **数据统计服务** - 历史数据查询、聚合统计
-- ✅ **核心算法** - 阈值判定、告警升级、数据聚合
-- ✅ **Mock服务** - 数据库/MQTT/Redis模拟
-- ✅ **定时任务** - 离线检测、告警升级、数据聚合、数据清理
-
-**API接口：** 14个全部实现并测试通过
+| 账号 | 密码 | 可选角色 |
+|------|------|----------|
+| `admin` | `123456` | 市政人员 / 管理员 |
+| `manager` | `123456` | 仅管理员 |
 
 ---
 
-## 🔗 API接口总览
+## API 接口（11 个 MVP）
 
-| 方法 | 路径 | 说明 | 状态 |
-|------|------|------|------|
-| GET | /api/health | 健康检查 | ✅ |
-| POST | /api/devices/:deviceId/control | 控制单个路灯 | ✅ |
-| POST | /api/devices/batch-control | 批量控制 | ✅ |
-| GET | /api/devices/:deviceId/control-logs | 控制历史 | ✅ |
-| GET | /api/devices/:deviceId/threshold | 获取阈值 | ✅ |
-| POST | /api/devices/:deviceId/threshold | 设置阈值 | ✅ |
-| GET | /api/devices/:deviceId/mode | 获取模式 | ✅ |
-| PUT | /api/devices/:deviceId/mode | 切换模式 | ✅ |
-| GET | /api/alarms | 告警列表 | ✅ |
-| GET | /api/alarms/:alarmId | 告警详情 | ✅ |
-| PUT | /api/alarms/:alarmId/resolve | 处理告警 | ✅ |
-| GET | /api/devices/:deviceId/light-history | 历史光照数据 | ✅ |
-| GET | /api/devices/:deviceId/statistics | 设备统计 | ✅ |
-| GET | /api/statistics/overview | 统计概览 | ✅ |
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/health` | 健康检查 |
+| GET | `/api/devices` | 获取所有设备 |
+| GET | `/api/devices/:id` | 获取单个设备详情 |
+| POST | `/api/devices/:id/control` | 控制单灯开关 |
+| POST | `/api/devices/batch-control` | 批量控制 |
+| GET | `/api/devices/:id/control-logs` | 控制日志 |
+| GET | `/api/devices/:id/light-history` | 光照历史数据 |
+| GET | `/api/devices/:id/threshold` | 获取阈值 |
+| POST | `/api/devices/:id/threshold` | 设置阈值 |
+| GET | `/api/devices/:id/mode` | 获取控制模式 |
+| PUT | `/api/devices/:id/mode` | 切换自动/手动模式 |
 
-详见 `任务3_API接口设计文档.md`
+详见 [任务3_API接口设计文档.md](任务3_API接口设计文档.md)
 
 ---
 
-## 💡 技术架构
+## 项目结构
 
 ```
-Express.js API
-     ↓
-业务逻辑层 (设备控制、告警、规则引擎)
-     ↓
-Mock服务层 (DB/MQTT/Redis) → 真实服务 (待集成)
-```
-
-### 核心模块
-
-- **设备控制服务** - 单个/批量控制，10秒超时
-- **告警服务** - 离线检测（每30秒）、告警升级（每10分钟）
-- **自动化规则引擎** - 5次采样4次满足触发，5分钟冷却期
-- **数据统计服务** - 数据聚合（每小时）、数据清理（每天2点）
-- **光照阈值算法** - 5次采样4次满足触发
-- **告警升级算法** - 按离线时长分级（低/中/高）
-- **数据聚合算法** - 统计平均/最大/最小值
-
----
-
-## 🧪 测试结果
-
-所有14个接口都已验证：
-
-- ✅ 所有接口路径正确
-- ✅ 所有请求格式正确
-- ✅ 所有响应格式符合规范
-- ✅ 所有错误处理完善
-- ✅ 定时任务正常运行
-- ✅ 自动化引擎正常工作
-
-**完成度：100%**
-
----
-
-## 🔄 与其他任务的关系
-
-```
-任务3 (本项目)
-├─ 依赖 任务2: 数据库、MQTT、Redis、JWT
-├─ 为 任务4 提供: API接口
-└─ 依赖 任务1: MQTT消息格式
+intelligent-street-lamp/
+├── README.md                        # 本文件
+├── 前端使用指南.md                   # 前端完整使用文档
+├── 任务3_API接口设计文档.md          # API 接口文档（11 个 MVP）
+├── 测试报告.md                       # 测试结果
+│
+├── task3-frontend/                  # Vue 3 前端
+│   ├── src/
+│   │   ├── App.vue                  # 主组件（全部页面）
+│   │   ├── main.js                  # 入口
+│   │   └── utils/api.ts            # Axios API 封装（11 个函数）
+│   ├── vite.config.js              # Vite + API 代理配置
+│   └── package.json
+│
+└── task3-backend/                   # Express 后端
+    ├── src/
+    │   ├── index.ts                 # 主入口，Express 启动
+    │   ├── config/database.ts       # MySQL 连接池
+    │   ├── types/database.types.ts  # TypeScript 数据模型
+    │   ├── controllers/             # 请求处理
+    │   ├── services/                # 业务逻辑 + MQTT 订阅
+    │   ├── routes/                  # 路由定义
+    │   └── mock/mock-mqtt.ts        # MQTT 客户端
+    ├── .env                         # 环境配置（不入库）
+    ├── .env.example                 # 环境配置模板
+    └── package.json
 ```
 
 ---
 
-## 📈 交付状态
+## 数据流
 
-### 可以立即交付给
-
-| 团队 | 状态 | 可开发内容 |
-|------|------|-----------|
-| **前端（任务4）** | ✅ 立即可用 | 90%功能可开发 |
-| **后端（任务2）** | ✅ 可集成 | 了解依赖需求 |
-| **硬件（任务1）** | ✅ 立即可用 | MQTT通信规范 |
-
-### 前端现在可以开发
-- ✅ 设备控制页面
-- ✅ 阈值管理页面
-- ✅ 设备模式页面
-- ✅ 控制历史页面
-- ✅ 告警管理页面
-- ✅ 数据统计页面
-- ⏳ 用户登录页面（等任务2的JWT）
+```
+硬件 ──MQTT──▶ devices/{id}/data      → light_data 表（光照记录）
+硬件 ──MQTT──▶ devices/{id}/heartbeat  → devices 表（在线状态+心跳）
+前端 ──HTTP──▶ POST /devices/{id}/control
+              → 后端 ──MQTT──▶ devices/{id}/control → 硬件执行
+              → 后端 ◀──MQTT── devices/{id}/control/response
+              → control_logs 表（操作记录）
+```
 
 ---
 
-## 📚 文档导航
+## 技术栈
+
+| 层 | 技术 |
+|----|------|
+| 前端框架 | Vue 3 (Composition API) |
+| 构建工具 | Vite 5 |
+| UI 图表 | ECharts 5 |
+| HTTP 客户端 | Axios |
+| 后端框架 | Express 4 + TypeScript |
+| 数据库 | MySQL (mysql2/promise) |
+| 消息协议 | MQTT (mqtt.js) |
+| AI 对话 | MaxKB (iframe 嵌入) |
+
+---
+
+## 文档导航
 
 | 文档 | 用途 |
 |------|------|
-| README.md | 项目总览（本文件） |
-| 前端对接指南.md | 前端如何使用 |
-| 任务3_API接口设计文档.md | 完整的14个API接口文档 |
-| task3-backend/README.md | 后端代码说明 |
+| [README.md](README.md) | 项目总览 |
+| [前端使用指南.md](前端使用指南.md) | 前端开发/使用完整指南 |
+| [任务3_API接口设计文档.md](任务3_API接口设计文档.md) | 11 个 MVP API 完整规范 |
+| [测试报告.md](测试报告.md) | 接口测试结果 |
+| [task3-backend/README.md](task3-backend/README.md) | 后端代码说明 |
