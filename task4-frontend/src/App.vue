@@ -606,8 +606,11 @@ const controlDeviceName = computed(() => {
 
 function formatTime(t) {
   if (!t) return '—'
-  // 处理 SQLite datetime 格式
-  return String(t).replace('T', ' ').slice(0, 19)
+  // 后端 Date 序列化为 UTC ISO 字符串，需转为本地时区显示
+  const d = new Date(t)
+  if (isNaN(d.getTime())) return String(t).replace('T', ' ').slice(0, 19)
+  const pad = n => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
 function showToast(msg, type = 'info') {
