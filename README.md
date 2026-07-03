@@ -1,6 +1,6 @@
 # 智慧路灯管理系统
 
-**项目状态：** MVP 运行中 | **最后更新：** 2026-07-02
+**项目状态：** MVP 运行中 | **最后更新：** 2026-07-03
 
 基于 Vue 3 + Express + MySQL + MQTT 的智能路灯 IoT 管理平台，支持远程开关控制、光照数据采集、设备监控和 AI 智能问答。
 
@@ -65,7 +65,7 @@ npm run dev             # → http://localhost:3000
 ### 2. 启动前端
 
 ```bash
-cd task3-frontend
+cd task4-frontend
 npm install
 npm run dev             # → http://localhost:5173
 ```
@@ -106,11 +106,10 @@ npm run dev             # → http://localhost:5173
 ```
 intelligent-street-lamp/
 ├── README.md                        # 本文件
-├── 前端使用指南.md                   # 前端完整使用文档
 ├── 任务3_API接口设计文档.md          # API 接口文档（11 个 MVP）
 ├── 测试报告.md                       # 测试结果
 │
-├── task3-frontend/                  # Vue 3 前端
+├── task4-frontend/                  # Vue 3 前端
 │   ├── src/
 │   │   ├── App.vue                  # 主组件（全部页面）
 │   │   ├── main.js                  # 入口
@@ -167,7 +166,7 @@ intelligent-street-lamp/
 | 文档 | 用途 |
 |------|------|
 | [README.md](README.md) | 项目总览 |
-| [前端使用指南.md](前端使用指南.md) | 前端开发/使用完整指南 |
+| [task4-frontend/README.md](task4-frontend/README.md) | 前端开发/使用完整指南 |
 | [任务3_API接口设计文档.md](任务3_API接口设计文档.md) | 11 个 MVP API 完整规范 |
 | [测试报告.md](测试报告.md) | 接口测试结果 |
 | [task3-backend/README.md](task3-backend/README.md) | 后端代码说明 |

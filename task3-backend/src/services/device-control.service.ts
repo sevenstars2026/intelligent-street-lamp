@@ -37,6 +37,7 @@ export class DeviceControlService {
     resolve: (result: ControlResult) => void;
     timeout: NodeJS.Timeout;
   }> = new Map();
+  private autoControlInFlight: Set<string> = new Set();
 
   constructor() {
     this.initMqttSubscriptions();
@@ -93,9 +94,74 @@ export class DeviceControlService {
       });
       console.log(`[HardwareData] 💾 Saved: ${deviceId} = ${lightIntensity} lux @ ${timestamp.toISOString()}`);
 
-      // TODO: 自动控制 — 根据光照阈值和当前模式自动开关灯
+      await this.evaluateAutoControl(deviceId, lightIntensity);
     } catch (err) {
       console.error(`[HardwareData] Failed to save data for ${deviceId}:`, err);
+    }
+  }
+
+  /**
+   * 自动模式下根据光照阈值开关灯。
+   * lightIntensity < lightThresholdOn  -> 开灯
+   * lightIntensity > lightThresholdOff -> 关灯
+   */
+  private async evaluateAutoControl(deviceId: string, lightIntensity: number): Promise<void> {
+    if (this.autoControlInFlight.has(deviceId)) {
+      console.log(`[AutoControl] Skip ${deviceId}: control in flight`);
+      return;
+    }
+
+    const device = await DatabaseService.getDevice(deviceId);
+    if (!device) {
+      console.warn(`[AutoControl] Skip ${deviceId}: device not found`);
+      return;
+    }
+
+    if (device.mode !== 'auto') {
+      console.log(`[AutoControl] Skip ${deviceId}: mode=${device.mode}`);
+      return;
+    }
+
+    const threshold = await DatabaseService.getThreshold(deviceId);
+    if (!threshold) {
+      console.warn(`[AutoControl] Skip ${deviceId}: threshold not configured`);
+      return;
+    }
+
+    let command: 'on' | 'off' | null = null;
+    if (lightIntensity < threshold.lightThresholdOn) {
+      command = 'on';
+    } else if (lightIntensity > threshold.lightThresholdOff) {
+      command = 'off';
+    }
+
+    if (!command) {
+      console.log(
+        `[AutoControl] Skip ${deviceId}: ${lightIntensity} lux within ${threshold.lightThresholdOn}-${threshold.lightThresholdOff}`
+      );
+      return;
+    }
+
+    if (device.currentState === command) {
+      console.log(`[AutoControl] Skip ${deviceId}: already ${command}`);
+      return;
+    }
+
+    this.autoControlInFlight.add(deviceId);
+    try {
+      console.log(
+        `[AutoControl] ${deviceId}: ${lightIntensity} lux -> ${command} ` +
+        `(threshold ${threshold.lightThresholdOn}-${threshold.lightThresholdOff})`
+      );
+      const result = await this.controlDevice({
+        deviceId,
+        command,
+        operatorId: 0,
+        operatorName: '自动控制'
+      });
+      console.log(`[AutoControl] ${deviceId}: ${result.status} - ${result.message}`);
+    } finally {
+      this.autoControlInFlight.delete(deviceId);
     }
   }
 
