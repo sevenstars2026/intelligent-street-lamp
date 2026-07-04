@@ -180,5 +180,5 @@ curl -X POST http://localhost:3000/api/devices/lamp_001/threshold \
 ## 相关文档
 
 - [../README.md](../README.md) — 项目总览
-- [../前端使用指南.md](../前端使用指南.md) — 前端完整使用文档
+- [../task4-frontend/README.md](../task4-frontend/README.md) — 前端完整使用文档
 - [../任务3_API接口设计文档.md](../任务3_API接口设计文档.md) — API 详细规范

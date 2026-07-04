@@ -4,6 +4,8 @@
 > 分支：feature/mvp  
 > 提交：a8221d8
 
+> 说明：本文记录 2026-07-02 的 5 接口精简版 MVP。当前仓库后续已完成前端集成和接口恢复，实际源码以 11 个 MVP API 为准，详见 `README.md`、`task3-backend/README.md` 和 `task3-backend/src/routes/device-control.routes.ts`。
+
 ---
 
 ## 一、实施目标
