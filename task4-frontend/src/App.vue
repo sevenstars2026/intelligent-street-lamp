@@ -400,46 +400,32 @@
             </div>
           </template>
 
-          <!-- ===== 智能问答 ===== -->
-          <template v-if="currentPage === 'chat'">
-            <div class="card">
-              <div class="card-title"><span class="dot"></span>路灯维护智能问答（RAG知识库）</div>
-              <div class="chat-area">
-                <div class="chat-messages" ref="chatMsgsRef">
-                  <div v-for="(m, i) in chatMessages" :key="i" :class="['chat-msg', m.role]">{{ m.text }}</div>
-                  <div v-if="chatLoading" class="chat-msg bot" style="color:#999">正在检索知识库...</div>
-                </div>
-                <div class="chat-input-area">
-                  <input v-model="chatInput" placeholder="输入路灯维护相关问题..." @keyup.enter="sendChat" />
-                  <button @click="sendChat">发送</button>
-                </div>
-              </div>
-            </div>
-          </template>
-
-        </div>
-      </div>
+           <!-- ===== 智能问答 ===== -->
+         <template v-if="currentPage === 'chat'">
+  <div class="card chat-card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;flex:1;">
+    <div class="card-title" style="padding:16px 20px;margin-bottom:0;border-bottom:1px solid #f0f0f0;flex-shrink:0;">
+      <span class="dot"></span>路灯维护智能问答（MaxKB RAG知识库）
     </div>
+    <iframe
+      src="http://192.168.20.119:8080/chat/1a18bc3351901450"
+      style="width:100%;flex:1;border:none;display:block;min-height:500px;"
+      allow="microphone"
+      frameborder="0"
+    ></iframe>
+  </div>
+</template>
+
+        </div>   <!-- 关闭 .content ← 新增 -->
 
     <!-- Toast通知 -->
     <div :class="['toast', toast.show ? 'show' : '', 'toast-' + toast.type]" v-text="toast.msg"></div>
-
-    <!-- ========== MaxKB 浮窗对话 ========== -->
-    <div class="maxkb-chat-wrapper" v-if="isLoggedIn">
-      <button class="chat-toggle-btn" @click="toggleMaxKBChat">
-        💬
-      </button>
-      <div class="chat-window" v-show="showMaxKBChat">
-        <iframe
-          src="http://192.168.20.119:8080/chat/789963b4426e509f"
-          frameborder="0"
-          allow="microphone"
-          style="width:100%;height:100%;border:none;"
-        ></iframe>
-      </div>
-    </div>
-  </div>
+  </div>   <!-- 关闭 main -->
+</div>     <!-- 关闭 app -->
+</div>     <!-- 关闭 root-app ← 新增 -->
 </template>
+
+
+
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
