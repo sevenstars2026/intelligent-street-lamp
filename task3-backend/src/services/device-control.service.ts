@@ -4,6 +4,7 @@
  */
 
 import { DatabaseService } from './database.service';
+import { AlarmService } from './alarm.service';
 import { mockMqttClient } from '../mock/mock-mqtt';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -329,6 +330,8 @@ export class DeviceControlService {
 
     if (!published) {
       await DatabaseService.updateControlLogResult(log.id, 'failed', 'MQTT发送失败');
+      await AlarmService.createControlFailedAlarm(request.deviceId, device.name ?? request.deviceId, 'MQTT发送失败');
+      await AlarmService.checkFrequentSwitch(request.deviceId, device.name ?? request.deviceId);
       return {
         deviceId: request.deviceId,
         command: request.command,
@@ -344,9 +347,13 @@ export class DeviceControlService {
     // 7. 更新控制日志
     await DatabaseService.updateControlLogResult(log.id, result.status, result.message);
 
-    // 8. 如果控制成功，更新设备状态
+    if (result.status === 'failed' || result.status === 'timeout') {
+      await AlarmService.createControlFailedAlarm(request.deviceId, device.name ?? request.deviceId, result.message);
+    }
+
     if (result.status === 'success') {
       await DatabaseService.updateDeviceState(request.deviceId, request.command);
+      await AlarmService.checkFrequentSwitch(request.deviceId, device.name ?? request.deviceId);
     }
 
     return result;

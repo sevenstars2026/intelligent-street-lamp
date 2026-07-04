@@ -317,7 +317,7 @@ export class DatabaseService {
 
   static async updateAlarmLevel(
     alarmId: number,
-    level: 'low' | 'medium' | 'high',
+    level: 'low' | 'medium' | 'high' | 'critical',
     message: string
   ): Promise<boolean> {
     const [result] = await this.pool().query<ResultSetHeader>(

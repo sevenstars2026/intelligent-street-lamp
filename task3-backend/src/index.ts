@@ -6,7 +6,9 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import deviceControlRoutes from './routes/device-control.routes';
+import alarmRoutes from './routes/alarm.routes';
 import { DatabaseService } from './services/database.service';
+import { AlarmService } from './services/alarm.service';
 import { closePool } from './config/database';
 import { mockMqttClient } from './mock/mock-mqtt';
 
@@ -62,6 +64,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 // 设备控制相关路由
 app.use('/api', deviceControlRoutes);
+app.use('/api', alarmRoutes);
 
 // 404处理
 app.use((req: Request, res: Response) => {
@@ -95,6 +98,9 @@ async function initialize() {
     await mockMqttClient.connect();
     console.log('✓ MQTT connected');
 
+    // 启动告警定时任务
+    AlarmService.startScheduler();
+
     console.log('All services initialized successfully');
   } catch (error) {
     console.error('Failed to initialize services:', error);
@@ -123,6 +129,9 @@ async function start() {
     console.log('  POST   /api/devices/:deviceId/threshold');
     console.log('  GET    /api/devices/:deviceId/mode');
     console.log('  PUT    /api/devices/:deviceId/mode');
+    console.log('  GET    /api/alarms');
+    console.log('  GET    /api/alarms/:alarmId');
+    console.log('  PUT    /api/alarms/:alarmId/resolve');
     console.log('\n');
   });
 }
