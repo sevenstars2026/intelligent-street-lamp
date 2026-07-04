@@ -55,6 +55,9 @@ npm run dev
 [MQTT] Subscribed to topic: devices/+/control/response
 [MQTT] Subscribed to topic: devices/+/data
 [MQTT] Subscribed to topic: devices/+/heartbeat
+[MQTT] Subscribed to topic: devices/+/config/request
+[MQTT] Subscribed to topic: devices/+/auto-action
+[MQTT] Subscribed to topic: devices/+/config/ack
 🚀 Server running on port 3000
 ```
 
@@ -113,14 +116,55 @@ src/
 
 | Topic | 方向 | 处理 |
 |-------|------|------|
-| `devices/{id}/control` | 后端→硬件 | 下发开/关灯指令 |
-| `devices/{id}/control/response` | 硬件→后端 | 控制结果反馈，更新 control_logs 和设备状态 |
-| `devices/{id}/data` | 硬件→后端 | 光照数据上报 → 写入 `light_data` 表 |
+| `devices/{id}/config` | 后端→硬件 | 下发模式和阈值配置 |
+| `devices/{id}/config/request` | 硬件→后端 | 硬件启动/重连后请求最新配置 |
+| `devices/{id}/config/ack` | 硬件→后端 | 硬件确认配置已应用，当前仅记录日志 |
+| `devices/{id}/auto-action` | 硬件→后端 | 硬件本地自动开关灯事件，更新状态并写控制日志 |
+| `devices/{id}/control` | 后端→硬件 | 下发手动开/关灯指令 |
+| `devices/{id}/control/response` | 硬件→后端 | 手动控制结果反馈，更新 control_logs 和设备状态 |
+| `devices/{id}/data` | 硬件→后端 | 光照数据上报 → 写入 `light_data` 表，不触发后端自动控制 |
 | `devices/{id}/heartbeat` | 硬件→后端 | 心跳上报 → 更新 `devices.last_heartbeat` 和在线状态 |
+
+### 配置下发
+
+用户通过 REST API 修改阈值或模式后，后端写入 MySQL，并立即推送：
+
+```json
+{"mode":"auto","thresholdOn":200,"thresholdOff":600,"version":1751436000000,"timestamp":1751436000000}
+```
+
+硬件也可以发布 `devices/{id}/config/request` 主动拉取配置：
+
+```json
+{"deviceId":"lamp_001","localVersion":0,"timestamp":1751436000000}
+```
+
+### 自动控制事件
+
+自动开关灯由硬件本地判断和执行。硬件执行后上报：
+
+```json
+{"deviceId":"lamp_001","action":"on","trigger":"light_below_threshold","lightIntensity":180,"thresholdOn":200,"thresholdOff":600,"timestamp":1751436000000}
+```
+
+后端收到后更新 `devices.current_state`，并写入 `control_logs`：
+
+- `operator_id = 0`
+- `operator_name = 自动控制`
+- `status = success`
+- `result_message = 光照 {lightIntensity} < 阈值 {thresholdOn}` 或 `光照 {lightIntensity} > 阈值 {thresholdOff}`
+
+### 手动控制
 
 控制指令格式：
 ```json
 {"cmd": "switch", "value": "on|off", "requestId": "uuid", "timestamp": 123456789}
+```
+
+硬件响应兼容以下格式：
+
+```json
+{"deviceId":"lamp_001","requestId":"uuid","success":true,"message":"执行成功","timestamp":1751436000000}
 ```
 
 硬件数据上报支持 `lightIntensity` / `lux` / `value` 多种字段名。
