@@ -244,42 +244,6 @@
               </div>
             </div>
 
-            <!-- 设备阈值设置弹窗 -->
-            <div class="modal-overlay" v-if="deviceThresholdModal.show" @click.self="deviceThresholdModal.show = false">
-              <div class="modal">
-                <h3>设置阈值 - {{ deviceThresholdModal.deviceName }}</h3>
-                <div class="form-group">
-                  <label>开灯阈值（低于此值自动开灯）</label>
-                  <input type="number" v-model.number="deviceThresholdModal.low" />
-                </div>
-                <div class="form-group">
-                  <label>关灯阈值（高于此值自动关灯）</label>
-                  <input type="number" v-model.number="deviceThresholdModal.high" />
-                </div>
-                <div class="modal-btns">
-                  <button class="btn btn-default" @click="deviceThresholdModal.show = false">取消</button>
-                  <button class="btn btn-primary" @click="saveDeviceThreshold" :disabled="deviceThresholdModal.saving">{{ deviceThresholdModal.saving ? '保存中...' : '确认保存' }}</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- 设备模式切换弹窗 -->
-            <div class="modal-overlay" v-if="deviceModeModal.show" @click.self="deviceModeModal.show = false">
-              <div class="modal">
-                <h3>切换模式 - {{ deviceModeModal.deviceName }}</h3>
-                <div class="form-group">
-                  <label>控制模式</label>
-                  <select v-model="deviceModeModal.mode">
-                    <option value="auto">🤖 自动模式</option>
-                    <option value="manual">🖐 手动模式</option>
-                  </select>
-                </div>
-                <div class="modal-btns">
-                  <button class="btn btn-default" @click="deviceModeModal.show = false">取消</button>
-                  <button class="btn btn-primary" @click="saveDeviceMode" :disabled="deviceModeModal.saving">{{ deviceModeModal.saving ? '保存中...' : '确认切换' }}</button>
-                </div>
-              </div>
-            </div>
           </template>
 
           <!-- ===== 告警日志 ===== -->
@@ -415,7 +379,44 @@
   </div>
 </template>
 
-        </div>   <!-- 关闭 .content ← 新增 -->
+        </div>   <!-- 关闭 .content -->
+
+        <!-- 设备阈值设置弹窗（全局） -->
+        <div class="modal-overlay" v-if="deviceThresholdModal.show" @click.self="deviceThresholdModal.show = false">
+          <div class="modal">
+            <h3>设置阈值 - {{ deviceThresholdModal.deviceName }}</h3>
+            <div class="form-group">
+              <label>开灯阈值（低于此值自动开灯）</label>
+              <input type="number" v-model.number="deviceThresholdModal.low" />
+            </div>
+            <div class="form-group">
+              <label>关灯阈值（高于此值自动关灯）</label>
+              <input type="number" v-model.number="deviceThresholdModal.high" />
+            </div>
+            <div class="modal-btns">
+              <button class="btn btn-default" @click="deviceThresholdModal.show = false">取消</button>
+              <button class="btn btn-primary" @click="saveDeviceThreshold" :disabled="deviceThresholdModal.saving">{{ deviceThresholdModal.saving ? '保存中...' : '确认保存' }}</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 设备模式切换弹窗（全局） -->
+        <div class="modal-overlay" v-if="deviceModeModal.show" @click.self="deviceModeModal.show = false">
+          <div class="modal">
+            <h3>切换模式 - {{ deviceModeModal.deviceName }}</h3>
+            <div class="form-group">
+              <label>控制模式</label>
+              <select v-model="deviceModeModal.mode">
+                <option value="auto">🤖 自动模式</option>
+                <option value="manual">🖐 手动模式</option>
+              </select>
+            </div>
+            <div class="modal-btns">
+              <button class="btn btn-default" @click="deviceModeModal.show = false">取消</button>
+              <button class="btn btn-primary" @click="saveDeviceMode" :disabled="deviceModeModal.saving">{{ deviceModeModal.saving ? '保存中...' : '确认切换' }}</button>
+            </div>
+          </div>
+        </div>
 
     <!-- Toast通知 -->
     <div :class="['toast', toast.show ? 'show' : '', 'toast-' + toast.type]" v-text="toast.msg"></div>
