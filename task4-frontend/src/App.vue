@@ -484,24 +484,6 @@ const historyData = ref([])
 const historyChartRef2 = ref(null)
 let historyChartInstance = null
 
-// MaxKB 浮窗对话
-const showMaxKBChat = ref(false)
-
-// 智能问答
-const chatMessages = ref([
-  { role: 'bot', text: '你好！我是路灯维护助手 🤖，基于RAG知识库为你解答路灯维护相关问题。你可以问我：\n• 路灯不亮怎么办？\n• 如何排查传感器故障？\n• 设备离线如何处理？' }
-])
-const chatInput = ref('')
-const chatLoading = ref(false)
-const chatMsgsRef = ref(null)
-const ragKnowledge = {
-  '路灯不亮': '根据知识库检索，路灯不亮的常见原因：\n1. 电源故障 — 检查供电线路是否正常\n2. 灯泡/灯珠损坏 — 需要更换光源模组\n3. 继电器故障 — 检查控制继电器动作是否正常\n4. 光照传感器脏污 — 清洁传感器表面',
-  '传感器': '光照传感器（BH1750）维护要点：\n1. 定期清洁传感器表面\n2. 检查I2C通信线缆连接\n3. 正常范围：0-65535 lux\n4. 读数为0或65535可能是损坏或接线脱落',
-  '离线': '设备离线处理流程：\n1. 查看设备最后心跳时间\n2. 检查设备供电\n3. 检查网络连接\n4. 尝试重启设备\n5. 安排现场检修',
-  '阈值': '光照阈值建议配置：\n• 城市主干道：下限50 lux / 上限500 lux\n• 小区道路：下限30 lux / 上限300 lux\n• 隧道入口：下限200 lux / 上限1000 lux',
-  '默认': '没有找到直接匹配的知识条目。建议尝试关键词：路灯不亮、传感器故障、设备离线、阈值设置。'
-}
-
 // Toast
 const toast = reactive({ show: false, msg: '', type: 'info' })
 
@@ -551,6 +533,7 @@ const menuItems = computed(() => {
       { key: 'logs', label: '控制日志', icon: '📄' },
       { key: 'history', label: '历史数据', icon: '📈' },
       { key: 'statistics', label: '统计概览', icon: '📉' },
+      { key: 'chat', label: '智能问答', icon: '🤖' },
     ]
   }
   return [
@@ -561,6 +544,7 @@ const menuItems = computed(() => {
     { key: 'logs', label: '控制日志', icon: '📄' },
     { key: 'history', label: '历史数据', icon: '📈' },
     { key: 'statistics', label: '统计概览', icon: '📉' },
+    { key: 'chat', label: '智能问答', icon: '🤖' },
   ]
 })
 
@@ -655,7 +639,6 @@ function logout() {
   loginForm.password = ''
   loginForm.role = 'municipal'
   alertDismissed.value = false
-  chatMessages.value = [chatMessages.value[0]]
 }
 
 // ---- 加载数据 ----
@@ -966,36 +949,6 @@ function initHistoryChart() {
   })
 }
 
-// ---- MaxKB 浮窗 ----
-function toggleMaxKBChat() {
-  showMaxKBChat.value = !showMaxKBChat.value
-}
-
-// ---- 智能问答 ----
-function sendChat() {
-  const q = chatInput.value.trim()
-  if (!q) return
-  chatMessages.value.push({ role: 'user', text: q })
-  chatInput.value = ''
-  chatLoading.value = true
-  nextTick(() => scrollChat())
-  
-  setTimeout(() => {
-    chatLoading.value = false
-    let answer = ragKnowledge['默认']
-    for (const [kw, ans] of Object.entries(ragKnowledge)) {
-      if (kw !== '默认' && q.includes(kw)) { answer = ans; break }
-    }
-    chatMessages.value.push({ role: 'bot', text: answer })
-    nextTick(() => scrollChat())
-  }, 800 + Math.random() * 1200)
-}
-
-function scrollChat() {
-  const el = chatMsgsRef.value
-  if (el) el.scrollTop = el.scrollHeight
-}
-
 // ==================== 监听 & 生命周期 ====================
 
 watch(currentPage, async (val) => {
@@ -1140,18 +1093,6 @@ tr:hover td{background:#fafafa}
 .light-switch-btn.on:hover{box-shadow:0 0 40px rgba(250,173,20,.7);transform:scale(1.05)}
 .light-switch-btn.off:hover{background:#bfbfbf;transform:scale(1.05)}
 
-/* 智能问答 */
-.chat-area{border:1px solid #f0f0f0;border-radius:8px;height:400px;display:flex;flex-direction:column;overflow:hidden}
-.chat-messages{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#fafafa}
-.chat-msg{max-width:75%;padding:10px 16px;border-radius:12px;font-size:13px;line-height:1.6;word-break:break-word}
-.chat-msg.user{align-self:flex-end;background:#1890ff;color:#fff;border-bottom-right-radius:4px}
-.chat-msg.bot{align-self:flex-start;background:#fff;border:1px solid #e8e8e8;border-bottom-left-radius:4px}
-.chat-input-area{display:flex;gap:8px;padding:12px;background:#fff;border-top:1px solid #f0f0f0}
-.chat-input-area input{flex:1;padding:10px 14px;border:1px solid #d9d9d9;border-radius:20px;outline:none;font-size:13px}
-.chat-input-area input:focus{border-color:#1890ff}
-.chat-input-area button{padding:10px 20px;background:#1890ff;color:#fff;border:none;border-radius:20px;cursor:pointer;font-size:13px}
-.chat-input-area button:hover{background:#40a9ff}
-
 /* 分页 */
 .pagination{display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:16px}
 .pagination button{padding:6px 12px;border:1px solid #d9d9d9;background:#fff;border-radius:4px;cursor:pointer;font-size:12px}
@@ -1212,48 +1153,4 @@ tr:hover td{background:#fafafa}
 @media(max-width:1200px){.stat-row{grid-template-columns:repeat(2,1fr)}.control-grid{grid-template-columns:1fr}.statistics-grid{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:768px){.sidebar{width:60px}.sidebar .logo span,.sidebar .nav-item span,.sidebar .user-info span{display:none}.sidebar .logo,.sidebar .nav-item,.sidebar .user-info{justify-content:center;padding:12px}.stat-row{grid-template-columns:1fr}.statistics-grid{grid-template-columns:1fr}}
 
-/* MaxKB 浮窗样式 */
-.maxkb-chat-wrapper {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 9999;
-}
-.chat-toggle-btn {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: #1890ff;
-  color: #fff;
-  border: none;
-  font-size: 24px;
-  cursor: pointer;
-  box-shadow: 0 4px 16px rgba(24,144,255,.4);
-  transition: all .3s;
-}
-.chat-toggle-btn:hover {
-  transform: scale(1.08);
-  box-shadow: 0 6px 24px rgba(24,144,255,.55);
-}
-.chat-window {
-  position: absolute;
-  bottom: 72px;
-  right: 0;
-  width: 420px;
-  height: 560px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 8px 40px rgba(0,0,0,.2);
-  overflow: hidden;
-  border: 1px solid #e8e8e8;
-}
-@media (max-width: 600px) {
-  .chat-window {
-    width: 100vw;
-    height: 100vh;
-    bottom: 0;
-    right: 0;
-    border-radius: 0;
-  }
-}
 </style>
