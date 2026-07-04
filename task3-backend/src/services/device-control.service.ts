@@ -36,8 +36,9 @@ export class DeviceControlService {
   private pendingRequests: Map<string, {
     resolve: (result: ControlResult) => void;
     timeout: NodeJS.Timeout;
+    deviceId: string;
+    command: 'on' | 'off';
   }> = new Map();
-  private autoControlInFlight: Set<string> = new Set();
 
   constructor() {
     this.initMqttSubscriptions();
@@ -67,6 +68,30 @@ export class DeviceControlService {
       if (!deviceId || !deviceId.startsWith('lamp_')) return;
       await this.handleHardwareHeartbeat(deviceId);
     });
+
+    // 硬件启动/重连后请求最新配置
+    mockMqttClient.subscribe('devices/+/config/request', async (_topic, message) => {
+      const deviceId = message.device_code || message.deviceId;
+      if (!deviceId || !deviceId.startsWith('lamp_')) return;
+      await this.handleConfigRequest(deviceId, message);
+    });
+
+    // 硬件本地自动控制完成后上报动作，后端只记录结果
+    mockMqttClient.subscribe('devices/+/auto-action', async (_topic, message) => {
+      const deviceId = message.device_code || message.deviceId;
+      if (!deviceId || !deviceId.startsWith('lamp_')) return;
+      await this.handleAutoAction(deviceId, message);
+    });
+
+    // 配置确认仅记录日志，当前版本不持久化 ack 状态
+    mockMqttClient.subscribe('devices/+/config/ack', (_topic, message) => {
+      const deviceId = message.device_code || message.deviceId;
+      if (!deviceId || !deviceId.startsWith('lamp_')) return;
+      console.log(
+        `[ConfigSync] ${deviceId} ack config v${message.version} ` +
+        `(accepted=${message.accepted === true})`
+      );
+    });
   }
 
   /**
@@ -93,75 +118,145 @@ export class DeviceControlService {
         timestamp,
       });
       console.log(`[HardwareData] 💾 Saved: ${deviceId} = ${lightIntensity} lux @ ${timestamp.toISOString()}`);
-
-      await this.evaluateAutoControl(deviceId, lightIntensity);
     } catch (err) {
       console.error(`[HardwareData] Failed to save data for ${deviceId}:`, err);
     }
   }
 
   /**
-   * 自动模式下根据光照阈值开关灯。
-   * lightIntensity < lightThresholdOn  -> 开灯
-   * lightIntensity > lightThresholdOff -> 关灯
+   * 推送当前设备模式和阈值配置到硬件。
    */
-  private async evaluateAutoControl(deviceId: string, lightIntensity: number): Promise<void> {
-    if (this.autoControlInFlight.has(deviceId)) {
-      console.log(`[AutoControl] Skip ${deviceId}: control in flight`);
-      return;
+  async syncDeviceConfig(deviceId: string): Promise<boolean> {
+    const config = await this.buildDeviceConfig(deviceId);
+    if (!config) return false;
+
+    if (!mockMqttClient.isConnectedStatus()) {
+      console.warn(`[ConfigSync] ${deviceId} publish failed: MQTT not connected`);
+      return false;
     }
 
+    const published = await mockMqttClient.publish(
+      `devices/${deviceId}/config`,
+      {
+        mode: config.mode,
+        thresholdOn: config.thresholdOn,
+        thresholdOff: config.thresholdOff,
+        version: config.version,
+        timestamp: Date.now()
+      },
+      { qos: 1 }
+    );
+
+    if (published) {
+      console.log(
+        `[ConfigSync] 📤 ${deviceId} ← config v${config.version} ` +
+        `(${config.mode}, on=${config.thresholdOn}, off=${config.thresholdOff})`
+      );
+    } else {
+      console.warn(`[ConfigSync] ${deviceId} publish failed: MQTT publish returned false`);
+    }
+
+    return published;
+  }
+
+  private async buildDeviceConfig(deviceId: string): Promise<{
+    mode: 'auto' | 'manual';
+    thresholdOn: number;
+    thresholdOff: number;
+    version: number;
+  } | null> {
     const device = await DatabaseService.getDevice(deviceId);
     if (!device) {
-      console.warn(`[AutoControl] Skip ${deviceId}: device not found`);
-      return;
-    }
-
-    if (device.mode !== 'auto') {
-      console.log(`[AutoControl] Skip ${deviceId}: mode=${device.mode}`);
-      return;
+      console.warn(`[ConfigSync] ${deviceId} publish failed: device not found`);
+      return null;
     }
 
     const threshold = await DatabaseService.getThreshold(deviceId);
     if (!threshold) {
-      console.warn(`[AutoControl] Skip ${deviceId}: threshold not configured`);
-      return;
+      console.warn(`[ConfigSync] ${deviceId} publish failed: threshold not configured`);
+      return null;
     }
 
-    let command: 'on' | 'off' | null = null;
-    if (lightIntensity < threshold.lightThresholdOn) {
-      command = 'on';
-    } else if (lightIntensity > threshold.lightThresholdOff) {
-      command = 'off';
-    }
+    const thresholdUpdatedAt = threshold.updatedAt instanceof Date
+      ? threshold.updatedAt.getTime()
+      : new Date(threshold.updatedAt).getTime();
+    const version = Number.isFinite(thresholdUpdatedAt) ? thresholdUpdatedAt : 0;
 
-    if (!command) {
-      console.log(
-        `[AutoControl] Skip ${deviceId}: ${lightIntensity} lux within ${threshold.lightThresholdOn}-${threshold.lightThresholdOff}`
-      );
-      return;
-    }
+    return {
+      mode: device.mode,
+      thresholdOn: threshold.lightThresholdOn,
+      thresholdOff: threshold.lightThresholdOff,
+      version
+    };
+  }
 
-    if (device.currentState === command) {
-      console.log(`[AutoControl] Skip ${deviceId}: already ${command}`);
-      return;
-    }
-
-    this.autoControlInFlight.add(deviceId);
+  private async handleConfigRequest(deviceId: string, message: any): Promise<void> {
     try {
-      console.log(
-        `[AutoControl] ${deviceId}: ${lightIntensity} lux -> ${command} ` +
-        `(threshold ${threshold.lightThresholdOn}-${threshold.lightThresholdOff})`
-      );
-      const result = await this.controlDevice({
+      const localVersion = Number(message.localVersion) || 0;
+      const config = await this.buildDeviceConfig(deviceId);
+      if (!config) return;
+
+      if (config.version > localVersion || localVersion === 0) {
+        console.log(
+          `[ConfigSync] 📩 ${deviceId} requested config ` +
+          `(local v${localVersion}, db v${config.version}) → pushing`
+        );
+        await this.syncDeviceConfig(deviceId);
+      } else {
+        console.log(
+          `[ConfigSync] 📩 ${deviceId} requested config ` +
+          `(local v${localVersion}, db v${config.version}) → up-to-date`
+        );
+      }
+    } catch (err) {
+      console.error(`[ConfigSync] Failed to handle config request for ${deviceId}:`, err);
+    }
+  }
+
+  private async handleAutoAction(deviceId: string, message: any): Promise<void> {
+    try {
+      const action = message.action;
+      if (!['on', 'off'].includes(action)) {
+        console.warn(`[AutoAction] Invalid action from ${deviceId}:`, message);
+        return;
+      }
+
+      const lightIntensity = Number(message.lightIntensity ?? message.lux ?? message.value);
+      const thresholdOn = Number(message.thresholdOn);
+      const thresholdOff = Number(message.thresholdOff);
+      const executedAt = message.timestamp ? new Date(message.timestamp) : new Date();
+
+      if (!Number.isFinite(lightIntensity) || !Number.isFinite(thresholdOn) || !Number.isFinite(thresholdOff)) {
+        console.warn(`[AutoAction] Invalid payload from ${deviceId}:`, message);
+        return;
+      }
+
+      await DatabaseService.updateDeviceState(deviceId, action);
+
+      const isTurnOn = action === 'on';
+      const resultMessage = isTurnOn
+        ? `光照 ${lightIntensity} < 阈值 ${thresholdOn}`
+        : `光照 ${lightIntensity} > 阈值 ${thresholdOff}`;
+
+      await DatabaseService.addControlLog({
         deviceId,
-        command,
+        command: action,
+        status: 'success',
         operatorId: 0,
-        operatorName: '自动控制'
+        operatorName: '自动控制',
+        requestTime: executedAt,
+        responseTime: executedAt,
+        resultMessage
       });
-      console.log(`[AutoControl] ${deviceId}: ${result.status} - ${result.message}`);
-    } finally {
-      this.autoControlInFlight.delete(deviceId);
+
+      if (isTurnOn) {
+        console.log(`[AutoAction] 💡 ${deviceId} 自动开灯（${resultMessage}）`);
+      } else {
+        console.log(`[AutoAction] 🌙 ${deviceId} 自动关灯（${resultMessage}）`);
+      }
+    } catch (err) {
+      console.error(`[AutoAction] Failed to handle auto action for ${deviceId}:`, err);
+      return;
     }
   }
 
@@ -312,7 +407,9 @@ export class DeviceControlService {
       // 保存待处理请求
       this.pendingRequests.set(requestId, {
         resolve,
-        timeout
+        timeout,
+        deviceId,
+        command
       });
     });
   }
@@ -332,12 +429,13 @@ export class DeviceControlService {
     clearTimeout(pending.timeout);
     this.pendingRequests.delete(requestId);
 
-    // 解析设备ID和命令（从result中获取）
+    const success = status === 'success' || message.success === true;
+
     const controlResult: ControlResult = {
-      deviceId: message.deviceId || 'unknown',
-      command: result as 'on' | 'off',
-      status: status === 'success' ? 'success' : 'failed',
-      message: resultMessage || (status === 'success' ? '控制成功' : '控制失败'),
+      deviceId: message.deviceId || pending.deviceId,
+      command: (result || message.value || pending.command) as 'on' | 'off',
+      status: success ? 'success' : 'failed',
+      message: resultMessage || message.message || (success ? '控制成功' : '控制失败'),
       executedAt: new Date()
     };
 

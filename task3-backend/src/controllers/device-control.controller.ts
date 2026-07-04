@@ -307,6 +307,7 @@ export class DeviceControlController {
         lightThresholdOn,
         lightThresholdOff
       });
+      await controlService.syncDeviceConfig(deviceId);
 
       res.status(200).json({
         code: 200,
@@ -390,6 +391,8 @@ export class DeviceControlController {
         });
         return;
       }
+      await DatabaseService.touchThresholdUpdatedAt(deviceId);
+      await controlService.syncDeviceConfig(deviceId);
 
       res.status(200).json({
         code: 200,
