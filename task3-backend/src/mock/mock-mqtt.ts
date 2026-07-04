@@ -146,7 +146,7 @@ export class MockMqttClient {
   /**
    * 发布消息
    */
-  async publish(topic: string, message: any): Promise<boolean> {
+  async publish(topic: string, message: any, options?: mqtt.IClientPublishOptions): Promise<boolean> {
     if (!this.isConnected || !this.client) {
       console.error('[MQTT] Not connected to broker');
       return false;
@@ -155,7 +155,7 @@ export class MockMqttClient {
     const payload = JSON.stringify(message);
 
     return new Promise((resolve) => {
-      this.client!.publish(topic, payload, (err) => {
+      this.client!.publish(topic, payload, options || {}, (err) => {
         if (err) {
           console.error(`[MQTT] Failed to publish to ${topic}:`, err);
           resolve(false);

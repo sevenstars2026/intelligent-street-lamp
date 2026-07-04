@@ -192,6 +192,14 @@ export class DatabaseService {
     return updated;
   }
 
+  static async touchThresholdUpdatedAt(deviceId: string): Promise<boolean> {
+    const [result] = await this.pool().query<ResultSetHeader>(
+      'UPDATE thresholds SET updated_at = NOW() WHERE device_id = ?',
+      [deviceId]
+    );
+    return result.affectedRows > 0;
+  }
+
   // ===== 控制日志操作 =====
 
   static async addControlLog(
