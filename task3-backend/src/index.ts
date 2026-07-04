@@ -91,9 +91,9 @@ async function initialize() {
     // 连接MySQL数据库
     await DatabaseService.init();
 
-    // 连接Mock MQTT
+    // 连接 MQTT Broker
     await mockMqttClient.connect();
-    console.log('✓ Mock MQTT connected');
+    console.log('✓ MQTT connected');
 
     console.log('All services initialized successfully');
   } catch (error) {
@@ -111,12 +111,18 @@ async function start() {
     console.log(`📡 API Base URL: http://localhost:${PORT}/api`);
     console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
     console.log('========================================\n');
-    console.log('MVP Endpoints:');
+    console.log('MVP Endpoints (11):');
+    console.log('  GET    /api/health');
     console.log('  GET    /api/devices');
     console.log('  GET    /api/devices/:deviceId');
     console.log('  POST   /api/devices/:deviceId/control');
+    console.log('  POST   /api/devices/batch-control');
+    console.log('  GET    /api/devices/:deviceId/control-logs');
     console.log('  GET    /api/devices/:deviceId/light-history');
-    console.log('  GET    /api/health');
+    console.log('  GET    /api/devices/:deviceId/threshold');
+    console.log('  POST   /api/devices/:deviceId/threshold');
+    console.log('  GET    /api/devices/:deviceId/mode');
+    console.log('  PUT    /api/devices/:deviceId/mode');
     console.log('\n');
   });
 }
