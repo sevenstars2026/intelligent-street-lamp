@@ -1,8 +1,8 @@
 # 智慧路灯管理系统
 
-**项目状态：** MVP 运行中 | **最后更新：** 2026-07-03
+**项目状态：** MVP 运行中 | **最后更新：** 2026-07-04
 
-基于 Vue 3 + Express + MySQL + MQTT 的智能路灯 IoT 管理平台，支持远程开关控制、光照数据采集、设备监控和 AI 智能问答。
+基于 Vue 3 + Express + MySQL + MQTT 的智能路灯 IoT 管理平台，支持远程开关控制、光照数据采集、阈值/模式配置同步、硬件本地自动控制事件记录、设备监控和 AI 智能问答。
 
 ---
 
@@ -42,6 +42,26 @@
 | 历史数据 | 按时间范围查询光照数据曲线 | ✅ |
 | 统计概览 | 设备统计（总数/在线/模式/亮灯） | ✅ |
 | AI 问答 | MaxKB 浮窗对话（全局右下角 💬 按钮） | ✅ |
+
+---
+
+## 自动控制说明
+
+当前版本按 `自动控制功能接口规范.md` 实现：**自动控制决策由硬件本地完成，后端不再根据光照值直接开关灯**。
+
+后端职责：
+
+- 管理 `devices.mode` 和 `thresholds` 阈值配置
+- 用户修改模式或阈值后，通过 MQTT 推送 `devices/{id}/config`
+- 响应硬件 `devices/{id}/config/request` 配置请求
+- 接收硬件 `devices/{id}/auto-action`，更新设备状态并写入控制日志
+- 接收 `devices/{id}/data` 光照数据，仅写入 `light_data`
+
+硬件职责：
+
+- 本地保存模式和阈值配置
+- 在 `auto` 模式下本地读取光照、比对阈值并执行开关灯
+- 自动开关后上报 `auto-action`，供后端记录
 
 ---
 
@@ -136,12 +156,23 @@ intelligent-street-lamp/
 ## 数据流
 
 ```
-硬件 ──MQTT──▶ devices/{id}/data      → light_data 表（光照记录）
+前端 ──HTTP──▶ POST/PUT threshold|mode
+              → 后端写 MySQL
+              → 后端 ──MQTT──▶ devices/{id}/config → 硬件更新本地配置
+
+硬件 ──MQTT──▶ devices/{id}/config/request
+              → 后端查询 MySQL
+              → 后端 ──MQTT──▶ devices/{id}/config
+
+硬件 ──MQTT──▶ devices/{id}/data       → light_data 表（仅记录光照）
 硬件 ──MQTT──▶ devices/{id}/heartbeat  → devices 表（在线状态+心跳）
+硬件 ──MQTT──▶ devices/{id}/auto-action
+              → devices.current_state + control_logs（自动控制记录）
+
 前端 ──HTTP──▶ POST /devices/{id}/control
-              → 后端 ──MQTT──▶ devices/{id}/control → 硬件执行
-              → 后端 ◀──MQTT── devices/{id}/control/response
-              → control_logs 表（操作记录）
+              → 后端 ──MQTT──▶ devices/{id}/control
+              → 硬件执行并回复 control/response
+              → control_logs 表（手动控制记录）
 ```
 
 ---
