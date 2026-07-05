@@ -55,10 +55,6 @@ export class AlarmService {
   static async checkOfflineDevices(): Promise<void> {
     const devices = await DatabaseService.getAllDevices();
     for (const device of devices) {
-      if (device.status !== 'online') {
-        continue;
-      }
-
       const lastHeartbeat = device.lastHeartbeat instanceof Date ? device.lastHeartbeat : new Date(device.lastHeartbeat);
       const offlineDurationMinutes = (Date.now() - lastHeartbeat.getTime()) / (1000 * 60);
       if (offlineDurationMinutes <= 5) {
@@ -87,7 +83,9 @@ export class AlarmService {
         handlerName: null,
       });
 
-      await DatabaseService.updateDeviceStatus(device.id, 'offline');
+      if (device.status !== 'offline') {
+        await DatabaseService.updateDeviceStatus(device.id, 'offline');
+      }
       console.log(`[AlarmService] 🚨 offline alarm created for ${device.id}`);
     }
   }
@@ -179,12 +177,24 @@ export class AlarmService {
   }
 
   static startScheduler(): void {
+    this.checkOfflineDevices().catch((error) => {
+      console.error('[AlarmScheduler] initial checkOfflineDevices error:', error);
+    });
+
     cron.schedule('* * * * *', async () => {
-      await this.checkOfflineDevices();
+      try {
+        await this.checkOfflineDevices();
+      } catch (error) {
+        console.error('[AlarmScheduler] checkOfflineDevices error:', error);
+      }
     });
 
     cron.schedule('0 * * * *', async () => {
-      await this.upgradeAlarms();
+      try {
+        await this.upgradeAlarms();
+      } catch (error) {
+        console.error('[AlarmScheduler] upgradeAlarms error:', error);
+      }
     });
 
     console.log('[AlarmScheduler] started');

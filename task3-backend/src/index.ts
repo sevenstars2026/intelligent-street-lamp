@@ -47,7 +47,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // ===== 路由配置 =====
 
 // 健康检查
-app.get('/api/health', (req: Request, res: Response) => {
+app.get('/api/health', async (req: Request, res: Response) => {
+  let databaseStatus: 'up' | 'down' = 'up';
+  try {
+    databaseStatus = await DatabaseService.ping() ? 'up' : 'down';
+  } catch (error) {
+    databaseStatus = 'down';
+  }
+
   res.json({
     code: 200,
     message: 'healthy',
@@ -55,7 +62,7 @@ app.get('/api/health', (req: Request, res: Response) => {
       status: 'up',
       timestamp: new Date().toISOString(),
       services: {
-        database: 'up',
+        database: databaseStatus,
         mqtt: mockMqttClient.isConnectedStatus() ? 'up' : 'down'
       }
     }
@@ -94,9 +101,14 @@ async function initialize() {
     // 连接MySQL数据库
     await DatabaseService.init();
 
-    // 连接 MQTT Broker
-    await mockMqttClient.connect();
-    console.log('✓ MQTT connected');
+    // 连接 MQTT Broker。Broker 不可用时仍启动 HTTP 服务，控制接口会返回不可用。
+    try {
+      await mockMqttClient.connect();
+      console.log('✓ MQTT connected');
+    } catch (error) {
+      console.warn('⚠ MQTT unavailable, HTTP API will continue running:', error);
+      mockMqttClient.disconnect();
+    }
 
     // 启动告警定时任务
     AlarmService.startScheduler();
