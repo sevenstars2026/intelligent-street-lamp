@@ -67,6 +67,22 @@ export function getDeviceLightHistory(deviceId: string, params: { startTime: str
     return api.get(`/devices/${deviceId}/light-history`, { params })
 }
 
+// ===== 告警 =====
+export function getAlarms(params?: {
+    status?: 'active' | 'resolved'
+    deviceId?: string
+    alarmType?: string
+    alarmLevel?: string
+    page?: number
+    pageSize?: number
+}) {
+    return api.get('/alarms', { params })
+}
+
+export function resolveAlarm(alarmId: number, note?: string) {
+    return api.put(`/alarms/${alarmId}/resolve`, { note })
+}
+
 // ===== 健康检查 =====
 export function getHealth() { return api.get('/health') }
 

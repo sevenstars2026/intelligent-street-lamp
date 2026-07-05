@@ -64,7 +64,7 @@
             <!-- 告警提醒条 -->
             <div class="alert-bar" v-if="activeAlerts.length > 0 && !alertDismissed">
               <span class="alert-icon">⚠️</span>
-              <span class="alert-text">设备离线告警：{{ activeAlerts.map(a => a.device_name).join('、') }} 已离线，请及时处理！</span>
+              <span class="alert-text">设备离线告警：{{ activeAlerts.map(a => a.device_name || a.deviceName).join('、') }} 已离线，请及时处理！</span>
               <span class="close-alert" @click="alertDismissed = true" title="关闭">✕</span>
             </div>
 
@@ -285,11 +285,57 @@
           <!-- ===== 告警日志 ===== -->
           <template v-if="currentPage === 'alerts'">
             <div class="card">
-              <div class="card-title"><span class="dot"></span>告警日志</div>
-              <div style="padding:60px;text-align:center;color:#999">
-                <div style="font-size:48px;margin-bottom:16px">🔔</div>
-                <div>告警功能将在后续版本中开放</div>
-                <div style="font-size:12px;margin-top:8px">当前MVP版本暂不支持告警查询与处理</div>
+              <div class="card-title">
+                <span class="dot"></span>告警日志
+                <div class="history-toolbar">
+                  <select v-model="alertStatusFilter" @change="alertPage = 1; loadAlerts()">
+                    <option value="">全部告警</option>
+                    <option value="active">未处理</option>
+                    <option value="resolved">已处理</option>
+                  </select>
+                  <button class="btn btn-sm btn-default" @click="loadAlerts" :disabled="alertLoading">
+                    {{ alertLoading ? '刷新中...' : '刷新' }}
+                  </button>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>告警ID</th><th>设备</th><th>类型</th><th>级别</th><th>状态</th><th>内容</th><th>创建时间</th><th>处理人</th><th>操作</th></tr></thead>
+                  <tbody>
+                    <tr v-for="alarm in alertLogs" :key="alarm.id">
+                      <td>{{ alarm.id }}</td>
+                      <td>{{ alarm.device_name }}</td>
+                      <td>{{ alarmTypeText(alarm.alarmType) }}</td>
+                      <td><span :class="['tag', alarmLevelClass(alarm.alarmLevel)]">{{ alarmLevelText(alarm.alarmLevel) }}</span></td>
+                      <td><span :class="['tag', alarm.status === 'active' ? 'tag-pending' : 'tag-done']">{{ alarm.status === 'active' ? '未处理' : '已处理' }}</span></td>
+                      <td class="alarm-message">{{ alarm.message }}</td>
+                      <td>{{ formatTime(alarm.createdAt) }}</td>
+                      <td>{{ alarm.handlerName || '—' }}</td>
+                      <td>
+                        <button
+                          v-if="alarm.status === 'active'"
+                          class="btn btn-sm btn-primary"
+                          @click="handleResolveAlarm(alarm)"
+                          :disabled="resolvingAlarmId === alarm.id"
+                        >
+                          {{ resolvingAlarmId === alarm.id ? '处理中...' : '处理' }}
+                        </button>
+                        <span v-else>—</span>
+                      </td>
+                    </tr>
+                    <tr v-if="!alertLoading && alertLogs.length === 0">
+                      <td colspan="9" class="empty-cell">暂无告警数据</td>
+                    </tr>
+                    <tr v-if="alertLoading">
+                      <td colspan="9" class="empty-cell">正在加载告警数据...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="pagination">
+                <button :disabled="alertPage <= 1 || alertLoading" @click="alertPage--; loadAlerts()">上一页</button>
+                <span class="page-num">第 {{ alertPage }} 页 / 共 {{ alertTotalPages }} 页</span>
+                <button :disabled="alertPage >= alertTotalPages || alertLoading" @click="alertPage++; loadAlerts()">下一页</button>
               </div>
             </div>
           </template>
@@ -434,7 +480,8 @@ import { getDevices, getDeviceById,
          controlDevice, batchControl,
          getDeviceThreshold, setDeviceThreshold,
          getDeviceMode, setDeviceMode,
-         getControlLogs, getDeviceLightHistory } from './utils/api.ts'
+         getControlLogs, getDeviceLightHistory,
+         getAlarms, resolveAlarm } from './utils/api.ts'
 
 // ==================== 状态定义 ====================
 
@@ -455,9 +502,17 @@ const lightThreshold = reactive({ low: 100, high: 800 })
 
 // 告警提醒
 const alertDismissed = ref(false)
+const alertLogs = ref([])
+const activeAlertLogs = ref([])
+const alertPage = ref(1)
+const alertPageSize = ref(10)
+const alertTotal = ref(0)
+const alertStatusFilter = ref('active')
+const alertLoading = ref(false)
+const resolvingAlarmId = ref(null)
 
 // 控制
-const controlDeviceId = ref('light-001')
+const controlDeviceId = ref('')
 const controlMode = ref('auto')
 const switchFeedback = reactive({ show: false, type: '', msg: '' })
 const thresholdFeedback = reactive({ show: false, type: '', msg: '' })
@@ -541,6 +596,15 @@ function normalizeControlLog(log) {
   }
 }
 
+function normalizeAlarm(alarm) {
+  return {
+    ...alarm,
+    device_id: alarm.deviceId,
+    device_name: alarm.deviceName,
+    create_time: alarm.createdAt,
+  }
+}
+
 // ==================== 计算属性 ====================
 
 const menuItems = computed(() => {
@@ -575,13 +639,17 @@ const currentPageTitle = computed(() => {
 
 const onlineCount = computed(() => devices.value.filter(d => d.online).length)
 
-const activeAlerts = computed(() => devices.value.filter(d => !d.online))
+const activeAlerts = computed(() =>
+  activeAlertLogs.value.filter(a => a.status === 'active' && a.alarmType === 'offline')
+)
 
 const pendingAlertCount = computed(() => activeAlerts.value.length)
 
 const autoModeCount = computed(() => devices.value.filter(d => d.mode === 'auto').length)
 
 const litCount = computed(() => devices.value.filter(d => d.currentState === 'on').length)
+
+const alertTotalPages = computed(() => Math.max(1, Math.ceil(alertTotal.value / alertPageSize.value)))
 
 const controlDeviceName = computed(() => {
   const d = devices.value.find(d => d.deviceId === controlDeviceId.value)
@@ -604,6 +672,26 @@ function showToast(msg, type = 'info') {
   toast.msg = msg
   toast.type = type
   setTimeout(() => { toast.show = false }, 2500)
+}
+
+function alarmTypeText(type) {
+  const map = {
+    offline: '设备离线',
+    control_failed: '控制失败',
+    frequent_switch: '频繁开关'
+  }
+  return map[type] || type || '—'
+}
+
+function alarmLevelText(level) {
+  const map = { low: '低', medium: '中', high: '高', critical: '严重' }
+  return map[level] || level || '—'
+}
+
+function alarmLevelClass(level) {
+  if (level === 'critical' || level === 'high') return 'tag-danger'
+  if (level === 'medium') return 'tag-pending'
+  return 'tag-online'
 }
 
 // ---- 登录 ----
@@ -660,6 +748,30 @@ function logout() {
 
 // ---- 加载数据 ----
 let loadAllDataPromise = null
+let controlDeviceConfigSeq = 0
+
+async function loadControlDeviceConfig() {
+  const deviceId = controlDeviceId.value
+  if (!deviceId) return
+
+  const seq = ++controlDeviceConfigSeq
+  try {
+    const modeRes = await getDeviceMode(deviceId)
+    if (seq === controlDeviceConfigSeq) {
+      controlMode.value = modeRes.data?.mode || 'auto'
+    }
+  } catch (_) {}
+
+  try {
+    const thresholdRes = await getDeviceThreshold(deviceId)
+    if (seq === controlDeviceConfigSeq && thresholdRes.data) {
+      thresholdLow.value = thresholdRes.data.lightThresholdOn
+      thresholdHigh.value = thresholdRes.data.lightThresholdOff
+      lightThreshold.low = thresholdRes.data.lightThresholdOn
+      lightThreshold.high = thresholdRes.data.lightThresholdOff
+    }
+  } catch (_) {}
+}
 
 async function loadAllData() {
   if (loadAllDataPromise) return loadAllDataPromise
@@ -669,25 +781,15 @@ async function loadAllData() {
       const devicesRes = await getDevices()
       devices.value = (devicesRes.data || []).map(normalizeDevice)
       if (devices.value.length) {
+        const previousControlDeviceId = controlDeviceId.value
         const firstId = devices.value[0].id
-        if (!controlDeviceId.value) controlDeviceId.value = firstId
-        if (!historyDeviceId.value) historyDeviceId.value = firstId
-        if (!controlLogDeviceId.value) controlLogDeviceId.value = firstId
-        // 加载第一个设备的模式和阈值
-        try {
-          const modeRes = await getDeviceMode(firstId)
-          controlMode.value = modeRes.data?.mode || 'auto'
-        } catch (_) {}
-        try {
-          const thresholdRes = await getDeviceThreshold(firstId)
-          if (thresholdRes.data) {
-            thresholdLow.value = thresholdRes.data.lightThresholdOn
-            thresholdHigh.value = thresholdRes.data.lightThresholdOff
-            lightThreshold.low = thresholdRes.data.lightThresholdOn
-            lightThreshold.high = thresholdRes.data.lightThresholdOff
-          }
-        } catch (_) {}
+        const validIds = new Set(devices.value.map(d => d.id))
+        if (!controlDeviceId.value || !validIds.has(controlDeviceId.value)) controlDeviceId.value = firstId
+        if (!historyDeviceId.value || !validIds.has(historyDeviceId.value)) historyDeviceId.value = firstId
+        if (!controlLogDeviceId.value || !validIds.has(controlLogDeviceId.value)) controlLogDeviceId.value = firstId
+        if (previousControlDeviceId === controlDeviceId.value) await loadControlDeviceConfig()
       }
+      await loadActiveAlerts()
     } catch (e) { console.error(e) }
   })()
 
@@ -916,6 +1018,52 @@ async function loadControlLogs() {
   } catch (e) { console.error(e) }
 }
 
+// ---- 告警日志 ----
+async function loadAlerts(options = {}) {
+  if (!options.silent) alertLoading.value = true
+  try {
+    const params = {
+      page: alertPage.value,
+      pageSize: alertPageSize.value
+    }
+    if (alertStatusFilter.value) {
+      params.status = alertStatusFilter.value
+    }
+    const res = await getAlarms(params)
+    const data = res.data || {}
+    alertLogs.value = (data.alarms || []).map(normalizeAlarm)
+    alertTotal.value = data.pagination?.total || alertLogs.value.length
+  } catch (e) {
+    if (!options.silent) showToast(e.message || '告警数据加载失败', 'error')
+    console.error(e)
+  } finally {
+    alertLoading.value = false
+  }
+}
+
+async function loadActiveAlerts() {
+  try {
+    const res = await getAlarms({ status: 'active', page: 1, pageSize: 100 })
+    activeAlertLogs.value = (res.data?.alarms || []).map(normalizeAlarm)
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+async function handleResolveAlarm(alarm) {
+  resolvingAlarmId.value = alarm.id
+  try {
+    await resolveAlarm(alarm.id, '前端确认处理')
+    showToast('告警已处理', 'success')
+    await loadAlerts()
+    await loadActiveAlerts()
+  } catch (e) {
+    showToast(e.message || '告警处理失败', 'error')
+  } finally {
+    resolvingAlarmId.value = null
+  }
+}
+
 // ---- 历史数据 ----
 async function loadHistoryData() {
   if (!historyDeviceId.value && devices.value.length) {
@@ -1010,12 +1158,20 @@ function scrollChat() {
 
 // ==================== 监听 & 生命周期 ====================
 
+watch(controlDeviceId, () => {
+  loadControlDeviceConfig()
+})
+
 watch(currentPage, async (val) => {
   if (val === 'dashboard') {
     await nextTick()
+    loadActiveAlerts()
     initChart()
   } else if (val === 'logs') {
     loadControlLogs()
+  } else if (val === 'alerts') {
+    loadAlerts()
+    loadActiveAlerts()
   } else if (val === 'history') {
     await nextTick()
     if (!devices.value.length || !historyDeviceId.value) {
@@ -1113,6 +1269,9 @@ tr:hover td{background:#fafafa}
 .tag-offline{background:#f5f5f5;color:#999;border:1px solid #d9d9d9}
 .tag-done{background:#f6ffed;color:#52c41a;border:1px solid #b7eb8f}
 .tag-pending{background:#fff7e6;color:#fa8c16;border:1px solid #ffd591}
+.tag-danger{background:#fff2f0;color:#ff4d4f;border:1px solid #ffccc7}
+.alarm-message{max-width:360px;white-space:normal;line-height:1.5}
+.empty-cell{text-align:center;color:#999;padding:32px 16px}
 
 /* 按钮 */
 .btn{padding:8px 20px;border:none;border-radius:6px;cursor:pointer;font-size:13px;transition:all .2s;font-weight:500}
@@ -1190,6 +1349,7 @@ tr:hover td{background:#fafafa}
 .toast-success{background:#52c41a}
 .toast-info{background:#1890ff}
 .toast-warn{background:#fa8c16}
+.toast-error{background:#ff4d4f}
 
 /* 列布局 */
 .col-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}

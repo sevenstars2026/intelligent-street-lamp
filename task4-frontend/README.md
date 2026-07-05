@@ -120,7 +120,10 @@ task4-frontend/
 
 ### 4.4 告警日志（Alerts）— 仅管理员
 
-暂时显示占位页面：「告警功能将在后续版本中开放」。
+- 查询活跃、已处理或全部告警
+- 表格字段：告警ID、设备、类型、级别、状态、内容、创建时间、处理人
+- 支持分页、刷新和处理活跃告警
+- 首页离线告警提醒独立读取活跃告警，不受告警页筛选条件影响
 
 ### 4.5 控制日志（Logs）
 
@@ -153,14 +156,15 @@ task4-frontend/
 
 ### 5.1 API 封装（`api.ts`）
 
-所有 API 函数定义在 `task4-frontend/src/utils/api.ts`，共 11 个：
+所有 API 函数定义在 `task4-frontend/src/utils/api.ts`，共 13 个：
 
 ```typescript
 import { getDevices, getDeviceById,
          controlDevice, batchControl,
          getDeviceThreshold, setDeviceThreshold,
          getDeviceMode, setDeviceMode,
-         getControlLogs, getDeviceLightHistory } from './utils/api.ts'
+         getControlLogs, getDeviceLightHistory,
+         getAlarms, resolveAlarm } from './utils/api.ts'
 ```
 
 ### 5.2 响应拦截器
@@ -185,6 +189,8 @@ Axios 实例配置了响应拦截器：
 | `setDeviceMode(id, mode)` | PUT | `/devices/:id/mode` | 切换模式 |
 | `getControlLogs(id, params)` | GET | `/devices/:id/control-logs` | 控制日志 |
 | `getDeviceLightHistory(id, {...})` | GET | `/devices/:id/light-history` | 光照历史 |
+| `getAlarms(params)` | GET | `/alarms` | 告警列表 |
+| `resolveAlarm(id, note)` | PUT | `/alarms/:id/resolve` | 处理告警 |
 | `getHealth()` | GET | `/health` | 健康检查 |
 
 ### 5.4 在 Vue 组件中调用

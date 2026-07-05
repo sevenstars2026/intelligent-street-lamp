@@ -80,19 +80,22 @@ src/
 ├── types/
 │   └── database.types.ts             # 全部 TypeScript 数据模型
 ├── controllers/
-│   └── device-control.controller.ts  # HTTP 请求处理、参数校验
+│   ├── device-control.controller.ts  # 设备 HTTP 请求处理、参数校验
+│   └── alarm.controller.ts           # 告警查询与处理
 ├── services/
 │   ├── device-control.service.ts     # 设备控制业务 + MQTT 订阅
-│   └── database.service.ts          # 全部数据库 CRUD 操作
+│   ├── alarm.service.ts              # 告警检测、升级和处理
+│   └── database.service.ts           # 全部数据库 CRUD 操作
 ├── routes/
-│   └── device-control.routes.ts      # 路由定义（11 个接口）
+│   ├── device-control.routes.ts      # 设备接口路由
+│   └── alarm.routes.ts               # 告警接口路由
 └── mock/
     └── mock-mqtt.ts                  # MQTT 客户端（连接真实 Broker）
 ```
 
 ---
 
-## API 接口（11 个 MVP）
+## API 接口（主要 MVP 接口）
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -107,6 +110,9 @@ src/
 | POST | `/api/devices/:deviceId/threshold` | 设置阈值 |
 | GET | `/api/devices/:deviceId/mode` | 获取控制模式 |
 | PUT | `/api/devices/:deviceId/mode` | 切换模式 |
+| GET | `/api/alarms` | 查询告警列表 |
+| GET | `/api/alarms/:alarmId` | 查询单条告警 |
+| PUT | `/api/alarms/:alarmId/resolve` | 处理告警 |
 
 所有接口返回统一格式 `{ code, message, data }`。
 
@@ -179,7 +185,7 @@ src/
 | `thresholds` | 光照阈值配置 |
 | `control_logs` | 控制指令操作记录 |
 | `light_data` | 光照数据原始记录 |
-| `alarms` | 告警记录（表结构就绪，服务待实现） |
+| `alarms` | 告警记录（离线、控制失败、频繁开关、升级和处理） |
 | `aggregated_data` | 聚合统计数据（表结构就绪） |
 
 ---

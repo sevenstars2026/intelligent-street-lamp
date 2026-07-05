@@ -61,6 +61,10 @@ export class AlarmService {
         continue;
       }
 
+      if (device.status !== 'offline') {
+        await DatabaseService.updateDeviceStatus(device.id, 'offline');
+      }
+
       const existingActiveAlarms = await DatabaseService.getAlarms({
         status: 'active',
         deviceId: device.id,
@@ -82,11 +86,24 @@ export class AlarmService {
         handlerId: null,
         handlerName: null,
       });
-
-      if (device.status !== 'offline') {
-        await DatabaseService.updateDeviceStatus(device.id, 'offline');
-      }
       console.log(`[AlarmService] 🚨 offline alarm created for ${device.id}`);
+    }
+  }
+
+  static async resolveOfflineAlarmsForHeartbeat(deviceId: string): Promise<void> {
+    try {
+      const activeAlarms = await DatabaseService.getAlarms({
+        status: 'active',
+        deviceId,
+        alarmType: 'offline',
+      });
+
+      for (const alarm of activeAlarms) {
+        await DatabaseService.resolveAlarm(alarm.id, 0, '心跳恢复自动处理');
+        console.log(`[AlarmService] ✅ offline alarm resolved for ${deviceId}`);
+      }
+    } catch (error) {
+      console.error('[AlarmService] resolveOfflineAlarmsForHeartbeat error:', error);
     }
   }
 
