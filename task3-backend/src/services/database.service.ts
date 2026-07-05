@@ -5,6 +5,7 @@
  */
 
 import { getPool } from '../config/database';
+import { MockDatabase } from '../mock/mock-database';
 import type {
   Device,
   ThresholdConfig,
@@ -91,6 +92,8 @@ function mapAggregatedData(row: RowDataPacket): AggregatedDataRecord {
 // ====== DatabaseService 类 ======
 
 export class DatabaseService {
+  private static useMock = false;
+
   private static pool() {
     return getPool();
   }
@@ -98,15 +101,118 @@ export class DatabaseService {
   // ===== 初始化 =====
 
   static async init(): Promise<void> {
-    const pool = this.pool();
-    const conn = await pool.getConnection();
-    conn.release();
-    console.log('✓ MySQL Database connected');
+    let conn;
+    try {
+      const pool = this.pool();
+      conn = await pool.getConnection();
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS devices (
+          id VARCHAR(64) PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          status ENUM('online', 'offline') NOT NULL DEFAULT 'offline',
+          mode ENUM('auto', 'manual') NOT NULL DEFAULT 'auto',
+          current_state ENUM('on', 'off') NOT NULL DEFAULT 'off',
+          last_heartbeat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_devices_status (status)
+        )
+      `);
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS thresholds (
+          device_id VARCHAR(64) PRIMARY KEY,
+          light_threshold_on INT NOT NULL,
+          light_threshold_off INT NOT NULL,
+          updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_thresholds_updated_at (updated_at)
+        )
+      `);
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS control_logs (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          device_id VARCHAR(64) NOT NULL,
+          command ENUM('on', 'off') NOT NULL,
+          status ENUM('success', 'failed', 'timeout') NOT NULL,
+          operator_id INT NOT NULL,
+          operator_name VARCHAR(100) NOT NULL,
+          request_time DATETIME NOT NULL,
+          response_time DATETIME NULL,
+          result_message TEXT,
+          INDEX idx_control_logs_device_time (device_id, request_time)
+        )
+      `);
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS light_data (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          device_id VARCHAR(64) NOT NULL,
+          light_intensity INT NOT NULL,
+          timestamp DATETIME NOT NULL,
+          INDEX idx_light_data_device_time (device_id, timestamp)
+        )
+      `);
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS aggregated_data (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          device_id VARCHAR(64) NOT NULL,
+          time_window DATETIME NOT NULL,
+          avg_light_intensity DECIMAL(10,2) NOT NULL,
+          max_light_intensity INT NOT NULL,
+          min_light_intensity INT NOT NULL,
+          sample_count INT NOT NULL,
+          INDEX idx_aggregated_data_device_window (device_id, time_window)
+        )
+      `);
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS alarms (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          device_id VARCHAR(64) NOT NULL,
+          device_name VARCHAR(100) NOT NULL,
+          alarm_type ENUM('offline', 'control_failed', 'frequent_switch') NOT NULL,
+          alarm_level ENUM('low', 'medium', 'high', 'critical') NOT NULL,
+          status ENUM('active', 'resolved') NOT NULL DEFAULT 'active',
+          message TEXT,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          handled_at DATETIME NULL,
+          handler_id INT NULL,
+          handler_name VARCHAR(100) NULL,
+          INDEX idx_alarms_status_created (status, created_at),
+          INDEX idx_alarms_device_type_status (device_id, alarm_type, status)
+        )
+      `);
+      await conn.query(`
+        INSERT IGNORE INTO devices (id, name, status, mode, current_state, last_heartbeat)
+        VALUES
+          ('lamp_001', '路灯001', 'online', 'auto', 'off', NOW()),
+          ('lamp_002', '路灯002', 'online', 'auto', 'on', NOW()),
+          ('lamp_003', '路灯003', 'offline', 'manual', 'off', DATE_SUB(NOW(), INTERVAL 2 HOUR))
+      `);
+      await conn.query(`
+        INSERT IGNORE INTO thresholds (device_id, light_threshold_on, light_threshold_off, updated_at)
+        VALUES
+          ('lamp_001', 200, 600, NOW()),
+          ('lamp_002', 200, 600, NOW()),
+          ('lamp_003', 200, 600, NOW())
+      `);
+      this.useMock = false;
+      console.log('✓ MySQL Database connected');
+    } catch (error: any) {
+      this.useMock = true;
+      MockDatabase.reset();
+      MockDatabase.init();
+      console.warn(`[Database] MySQL unavailable, using MockDatabase fallback: ${error.message}`);
+    } finally {
+      if (conn) conn.release();
+    }
+  }
+
+  static async ping(): Promise<boolean> {
+    if (this.useMock) return false;
+    await this.pool().query('SELECT 1');
+    return true;
   }
 
   // ===== 设备操作 =====
 
   static async getDevice(deviceId: string): Promise<Device | null> {
+    if (this.useMock) return MockDatabase.getDevice(deviceId);
     const [rows] = await this.pool().query<RowDataPacket[]>(
       'SELECT id, name, status, mode, current_state, last_heartbeat FROM devices WHERE id = ?',
       [deviceId]
@@ -115,6 +221,7 @@ export class DatabaseService {
   }
 
   static async getAllDevices(): Promise<Device[]> {
+    if (this.useMock) return MockDatabase.getAllDevices();
     const [rows] = await this.pool().query<RowDataPacket[]>(
       'SELECT id, name, status, mode, current_state, last_heartbeat FROM devices'
     );
@@ -125,6 +232,7 @@ export class DatabaseService {
     deviceId: string,
     status: 'online' | 'offline'
   ): Promise<boolean> {
+    if (this.useMock) return MockDatabase.updateDeviceStatus(deviceId, status);
     const [result] = await this.pool().query<ResultSetHeader>(
       'UPDATE devices SET status = ? WHERE id = ?',
       [status, deviceId]
@@ -136,6 +244,7 @@ export class DatabaseService {
     deviceId: string,
     state: 'on' | 'off'
   ): Promise<boolean> {
+    if (this.useMock) return MockDatabase.updateDeviceState(deviceId, state);
     const [result] = await this.pool().query<ResultSetHeader>(
       'UPDATE devices SET current_state = ? WHERE id = ?',
       [state, deviceId]
@@ -147,6 +256,7 @@ export class DatabaseService {
     deviceId: string,
     mode: 'auto' | 'manual'
   ): Promise<boolean> {
+    if (this.useMock) return MockDatabase.updateDeviceMode(deviceId, mode);
     const [result] = await this.pool().query<ResultSetHeader>(
       'UPDATE devices SET mode = ? WHERE id = ?',
       [mode, deviceId]
@@ -155,6 +265,7 @@ export class DatabaseService {
   }
 
   static async updateHeartbeat(deviceId: string): Promise<boolean> {
+    if (this.useMock) return MockDatabase.updateHeartbeat(deviceId);
     const [result] = await this.pool().query<ResultSetHeader>(
       "UPDATE devices SET last_heartbeat = NOW(), status = 'online' WHERE id = ?",
       [deviceId]
@@ -165,6 +276,7 @@ export class DatabaseService {
   // ===== 阈值配置操作 =====
 
   static async getThreshold(deviceId: string): Promise<ThresholdConfig | null> {
+    if (this.useMock) return MockDatabase.getThreshold(deviceId);
     const [rows] = await this.pool().query<RowDataPacket[]>(
       'SELECT device_id, light_threshold_on, light_threshold_off, updated_at FROM thresholds WHERE device_id = ?',
       [deviceId]
@@ -175,6 +287,7 @@ export class DatabaseService {
   static async setThreshold(
     config: Omit<ThresholdConfig, 'updatedAt'>
   ): Promise<ThresholdConfig> {
+    if (this.useMock) return MockDatabase.setThreshold(config);
     await this.pool().query(
       `INSERT INTO thresholds (device_id, light_threshold_on, light_threshold_off, updated_at)
        VALUES (?, ?, ?, NOW())
@@ -193,6 +306,16 @@ export class DatabaseService {
   }
 
   static async touchThresholdUpdatedAt(deviceId: string): Promise<boolean> {
+    if (this.useMock) {
+      const threshold = MockDatabase.getThreshold(deviceId);
+      if (!threshold) return false;
+      MockDatabase.setThreshold({
+        deviceId,
+        lightThresholdOn: threshold.lightThresholdOn,
+        lightThresholdOff: threshold.lightThresholdOff,
+      });
+      return true;
+    }
     const [result] = await this.pool().query<ResultSetHeader>(
       'UPDATE thresholds SET updated_at = NOW() WHERE device_id = ?',
       [deviceId]
@@ -205,6 +328,7 @@ export class DatabaseService {
   static async addControlLog(
     log: Omit<ControlLog, 'id'>
   ): Promise<ControlLog> {
+    if (this.useMock) return MockDatabase.addControlLog(log);
     const [result] = await this.pool().query<ResultSetHeader>(
       `INSERT INTO control_logs (device_id, command, status, operator_id, operator_name, request_time, response_time, result_message)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -226,6 +350,7 @@ export class DatabaseService {
     deviceId: string,
     limit?: number
   ): Promise<ControlLog[]> {
+    if (this.useMock) return MockDatabase.getControlLogs(deviceId, limit);
     let sql =
       'SELECT id, device_id, command, status, operator_id, operator_name, request_time, response_time, result_message FROM control_logs WHERE device_id = ? ORDER BY request_time DESC';
     const params: (string | number)[] = [deviceId];
@@ -244,6 +369,7 @@ export class DatabaseService {
     status: 'success' | 'failed' | 'timeout',
     resultMessage: string
   ): Promise<boolean> {
+    if (this.useMock) return MockDatabase.updateControlLogResult(logId, status, resultMessage);
     const [result] = await this.pool().query<ResultSetHeader>(
       'UPDATE control_logs SET status = ?, result_message = ?, response_time = NOW() WHERE id = ?',
       [status, resultMessage, logId]
@@ -254,6 +380,7 @@ export class DatabaseService {
   // ===== 告警操作 =====
 
   static async addAlarm(alarm: Omit<Alarm, 'id'>): Promise<Alarm> {
+    if (this.useMock) return MockDatabase.addAlarm(alarm);
     const [result] = await this.pool().query<ResultSetHeader>(
       `INSERT INTO alarms (device_id, device_name, alarm_type, alarm_level, status, message, created_at, handled_at, handler_id, handler_name)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -279,6 +406,7 @@ export class DatabaseService {
     alarmType?: string;
     alarmLevel?: string;
   }): Promise<Alarm[]> {
+    if (this.useMock) return MockDatabase.getAlarms(filters);
     const conditions: string[] = [];
     const params: (string | number)[] = [];
 
@@ -308,6 +436,7 @@ export class DatabaseService {
   }
 
   static async getAlarm(alarmId: number): Promise<Alarm | null> {
+    if (this.useMock) return MockDatabase.getAlarm(alarmId);
     const [rows] = await this.pool().query<RowDataPacket[]>(
       'SELECT id, device_id, device_name, alarm_type, alarm_level, status, message, created_at, handled_at, handler_id, handler_name FROM alarms WHERE id = ?',
       [alarmId]
@@ -317,9 +446,10 @@ export class DatabaseService {
 
   static async updateAlarmLevel(
     alarmId: number,
-    level: 'low' | 'medium' | 'high',
+    level: 'low' | 'medium' | 'high' | 'critical',
     message: string
   ): Promise<boolean> {
+    if (this.useMock) return MockDatabase.updateAlarmLevel(alarmId, level, message);
     const [result] = await this.pool().query<ResultSetHeader>(
       'UPDATE alarms SET alarm_level = ?, message = ? WHERE id = ?',
       [level, message, alarmId]
@@ -332,6 +462,7 @@ export class DatabaseService {
     handlerId: number,
     handlerName: string
   ): Promise<boolean> {
+    if (this.useMock) return MockDatabase.resolveAlarm(alarmId, handlerId, handlerName);
     const [result] = await this.pool().query<ResultSetHeader>(
       "UPDATE alarms SET status = 'resolved', handled_at = NOW(), handler_id = ?, handler_name = ? WHERE id = ?",
       [handlerId, handlerName, alarmId]
@@ -346,6 +477,7 @@ export class DatabaseService {
     lightIntensity: number;
     timestamp: Date;
   }): Promise<LightDataRecord> {
+    if (this.useMock) return MockDatabase.addLightData(data);
     const [result] = await this.pool().query<ResultSetHeader>(
       'INSERT INTO light_data (device_id, light_intensity, timestamp) VALUES (?, ?, ?)',
       [data.deviceId, data.lightIntensity, data.timestamp]
@@ -358,6 +490,7 @@ export class DatabaseService {
     startTime: Date,
     endTime: Date
   ): Promise<LightDataRecord[]> {
+    if (this.useMock) return MockDatabase.getLightData(deviceId, startTime, endTime);
     const [rows] = await this.pool().query<RowDataPacket[]>(
       'SELECT id, device_id, light_intensity, timestamp FROM light_data WHERE device_id = ? AND timestamp >= ? AND timestamp <= ? ORDER BY timestamp ASC',
       [deviceId, startTime, endTime]
@@ -370,6 +503,7 @@ export class DatabaseService {
   static async saveAggregatedData(
     data: Omit<AggregatedDataRecord, 'id'>
   ): Promise<AggregatedDataRecord> {
+    if (this.useMock) return MockDatabase.saveAggregatedData(data);
     const [result] = await this.pool().query<ResultSetHeader>(
       `INSERT INTO aggregated_data (device_id, time_window, avg_light_intensity, max_light_intensity, min_light_intensity, sample_count)
        VALUES (?, ?, ?, ?, ?, ?)`,
@@ -386,6 +520,7 @@ export class DatabaseService {
   }
 
   static async deleteOldLightData(cutoffDate: Date): Promise<number> {
+    if (this.useMock) return MockDatabase.deleteOldLightData(cutoffDate);
     const [result] = await this.pool().query<ResultSetHeader>(
       'DELETE FROM light_data WHERE timestamp < ?',
       [cutoffDate]
@@ -394,6 +529,7 @@ export class DatabaseService {
   }
 
   static async deleteOldAggregatedData(cutoffDate: Date): Promise<number> {
+    if (this.useMock) return MockDatabase.deleteOldAggregatedData(cutoffDate);
     const [result] = await this.pool().query<ResultSetHeader>(
       'DELETE FROM aggregated_data WHERE time_window < ?',
       [cutoffDate]

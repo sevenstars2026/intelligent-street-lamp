@@ -6,7 +6,9 @@ import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import deviceControlRoutes from './routes/device-control.routes';
+import alarmRoutes from './routes/alarm.routes';
 import { DatabaseService } from './services/database.service';
+import { AlarmService } from './services/alarm.service';
 import { closePool } from './config/database';
 import { mockMqttClient } from './mock/mock-mqtt';
 
@@ -45,7 +47,14 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 // ===== 路由配置 =====
 
 // 健康检查
-app.get('/api/health', (req: Request, res: Response) => {
+app.get('/api/health', async (req: Request, res: Response) => {
+  let databaseStatus: 'up' | 'down' = 'up';
+  try {
+    databaseStatus = await DatabaseService.ping() ? 'up' : 'down';
+  } catch (error) {
+    databaseStatus = 'down';
+  }
+
   res.json({
     code: 200,
     message: 'healthy',
@@ -53,7 +62,7 @@ app.get('/api/health', (req: Request, res: Response) => {
       status: 'up',
       timestamp: new Date().toISOString(),
       services: {
-        database: 'up',
+        database: databaseStatus,
         mqtt: mockMqttClient.isConnectedStatus() ? 'up' : 'down'
       }
     }
@@ -62,6 +71,7 @@ app.get('/api/health', (req: Request, res: Response) => {
 
 // 设备控制相关路由
 app.use('/api', deviceControlRoutes);
+app.use('/api', alarmRoutes);
 
 // 404处理
 app.use((req: Request, res: Response) => {
@@ -91,9 +101,17 @@ async function initialize() {
     // 连接MySQL数据库
     await DatabaseService.init();
 
-    // 连接 MQTT Broker
-    await mockMqttClient.connect();
-    console.log('✓ MQTT connected');
+    // 连接 MQTT Broker。Broker 不可用时仍启动 HTTP 服务，控制接口会返回不可用。
+    try {
+      await mockMqttClient.connect();
+      console.log('✓ MQTT connected');
+    } catch (error) {
+      console.warn('⚠ MQTT unavailable, HTTP API will continue running:', error);
+      mockMqttClient.disconnect();
+    }
+
+    // 启动告警定时任务
+    AlarmService.startScheduler();
 
     console.log('All services initialized successfully');
   } catch (error) {
@@ -123,6 +141,9 @@ async function start() {
     console.log('  POST   /api/devices/:deviceId/threshold');
     console.log('  GET    /api/devices/:deviceId/mode');
     console.log('  PUT    /api/devices/:deviceId/mode');
+    console.log('  GET    /api/alarms');
+    console.log('  GET    /api/alarms/:alarmId');
+    console.log('  PUT    /api/alarms/:alarmId/resolve');
     console.log('\n');
   });
 }
