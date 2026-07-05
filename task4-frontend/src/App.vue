@@ -643,31 +643,43 @@ function logout() {
 }
 
 // ---- 加载数据 ----
+let loadAllDataPromise = null
+
 async function loadAllData() {
+  if (loadAllDataPromise) return loadAllDataPromise
+
+  loadAllDataPromise = (async () => {
+    try {
+      const devicesRes = await getDevices()
+      devices.value = (devicesRes.data || []).map(normalizeDevice)
+      if (devices.value.length) {
+        const firstId = devices.value[0].id
+        if (!controlDeviceId.value) controlDeviceId.value = firstId
+        if (!historyDeviceId.value) historyDeviceId.value = firstId
+        if (!controlLogDeviceId.value) controlLogDeviceId.value = firstId
+        // 加载第一个设备的模式和阈值
+        try {
+          const modeRes = await getDeviceMode(firstId)
+          controlMode.value = modeRes.data?.mode || 'auto'
+        } catch (_) {}
+        try {
+          const thresholdRes = await getDeviceThreshold(firstId)
+          if (thresholdRes.data) {
+            thresholdLow.value = thresholdRes.data.lightThresholdOn
+            thresholdHigh.value = thresholdRes.data.lightThresholdOff
+            lightThreshold.low = thresholdRes.data.lightThresholdOn
+            lightThreshold.high = thresholdRes.data.lightThresholdOff
+          }
+        } catch (_) {}
+      }
+    } catch (e) { console.error(e) }
+  })()
+
   try {
-    const devicesRes = await getDevices()
-    devices.value = (devicesRes.data || []).map(normalizeDevice)
-    if (devices.value.length) {
-      const firstId = devices.value[0].id
-      if (!controlDeviceId.value) controlDeviceId.value = firstId
-      if (!historyDeviceId.value) historyDeviceId.value = firstId
-      if (!controlLogDeviceId.value) controlLogDeviceId.value = firstId
-      // 加载第一个设备的模式和阈值
-      try {
-        const modeRes = await getDeviceMode(firstId)
-        controlMode.value = modeRes.data?.mode || 'auto'
-      } catch (_) {}
-      try {
-        const thresholdRes = await getDeviceThreshold(firstId)
-        if (thresholdRes.data) {
-          thresholdLow.value = thresholdRes.data.lightThresholdOn
-          thresholdHigh.value = thresholdRes.data.lightThresholdOff
-          lightThreshold.low = thresholdRes.data.lightThresholdOn
-          lightThreshold.high = thresholdRes.data.lightThresholdOff
-        }
-      } catch (_) {}
-    }
-  } catch (e) { console.error(e) }
+    return await loadAllDataPromise
+  } finally {
+    loadAllDataPromise = null
+  }
 }
 
 // ---- ECharts 图表 ----
@@ -960,7 +972,10 @@ watch(currentPage, async (val) => {
     loadControlLogs()
   } else if (val === 'history') {
     await nextTick()
-    initHistoryChart()
+    if (!devices.value.length || !historyDeviceId.value) {
+      await loadAllData()
+    }
+    await loadHistoryData()
   }
 })
 

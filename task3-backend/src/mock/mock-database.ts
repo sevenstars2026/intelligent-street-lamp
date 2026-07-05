@@ -198,7 +198,7 @@ export class MockDatabase {
     return this.alarms.find(a => a.id === alarmId) || null;
   }
 
-  static updateAlarmLevel(alarmId: number, level: 'low' | 'medium' | 'high', message: string): boolean {
+  static updateAlarmLevel(alarmId: number, level: 'low' | 'medium' | 'high' | 'critical', message: string): boolean {
     const alarm = this.alarms.find(a => a.id === alarmId);
     if (!alarm) return false;
 
