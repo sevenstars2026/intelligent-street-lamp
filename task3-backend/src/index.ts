@@ -151,6 +151,7 @@ async function start() {
 // 优雅关闭
 process.on('SIGINT', async () => {
   console.log('\nShutting down gracefully...');
+  AlarmService.stopScheduler();
   mockMqttClient.disconnect();
   await closePool();
   process.exit(0);
@@ -158,6 +159,7 @@ process.on('SIGINT', async () => {
 
 process.on('SIGTERM', async () => {
   console.log('\nShutting down gracefully...');
+  AlarmService.stopScheduler();
   mockMqttClient.disconnect();
   await closePool();
   process.exit(0);

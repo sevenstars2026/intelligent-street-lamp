@@ -69,17 +69,27 @@ export function getDeviceLightHistory(deviceId: string, params: { startTime: str
 
 // ===== 告警 =====
 export function getAlarms(params?: {
-    status?: 'active' | 'resolved'
+    status?: 'active' | 'resolved' | string
     deviceId?: string
     alarmType?: string
     alarmLevel?: string
+    level?: string
     page?: number
     pageSize?: number
 }) {
-    return api.get('/alarms', { params })
+    const query = { ...(params || {}) }
+    if (query.level && !query.alarmLevel) {
+        query.alarmLevel = query.level
+    }
+    delete query.level
+    return api.get('/alarms', { params: query })
 }
 
-export function resolveAlarm(alarmId: number, note?: string) {
+export function getAlarm(alarmId: string | number) {
+    return api.get(`/alarms/${alarmId}`)
+}
+
+export function resolveAlarm(alarmId: string | number, note?: string) {
     return api.put(`/alarms/${alarmId}/resolve`, { note })
 }
 

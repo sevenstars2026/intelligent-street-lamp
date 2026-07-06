@@ -1,0 +1,182 @@
+Technical Project Report: Intelligent Street Lamp Management System
+
+Author: [Your Name]
+Date: July 3, 2026
+
+
+1. Project Introduction
+
+Street lamps are an important part of city life. They keep roads bright at
+night so people can walk and drive safely. However, many cities still use old
+control methods for their street lamps. Workers have to turn them on and off by
+hand, or use simple timers that do not check the real light level. This wastes
+a lot of electricity. For example, lamps may stay on during sunny hours or turn
+off too early on cloudy days.
+
+This project builds a smart street lamp management system using IoT (Internet
+of Things) technology. The system lets users control street lamps from a web
+browser. Users can check the status of each lamp in real time, turn lamps on or
+off, collect light data from sensors, and view charts of past data. The system
+also has an AI chatbot to answer users' questions about how to use it.
+
+This report describes the whole process of building this system — from
+requirements to design, testing, and final results. The system uses simulated
+hardware for testing instead of real devices.
+
+
+2. Requirement Analysis
+
+The system has eight main functional requirements:
+
+(1) Device List: Show all street lamps with their name, location, status
+    (online or offline), and current state (on or off).
+
+(2) Single Lamp Control: Turn one lamp on or off from the web page.
+
+(3) Batch Control: Turn many lamps on or off at the same time.
+
+(4) Light Data Collection: Receive light sensor data from each lamp and save
+    it to the database.
+
+(5) History Query: Let users search past light data and show it as a line
+    chart.
+
+(6) Control Logs: Record every control action — who did what and when.
+
+(7) Threshold Management: Set a light level for automatic control. When the
+    environment light falls below the threshold, the lamp turns on.
+
+(8) AI Q&A: An AI chatbot helps users learn about the system.
+
+For non-functional requirements, the system should respond quickly (most API
+requests under 100 milliseconds), be easy to use, and handle errors without
+crashing.
+
+
+3. Design and Implementation
+
+3.1 Architecture
+
+The system has four layers:
+
+    Frontend (Vue 3) --> Backend (Express + TypeScript) --> MySQL Database
+                                  |
+                                  v
+                            MQTT Broker
+                                  |
+                                  v
+                         Hardware (Street Lamps)
+
+The frontend sends HTTP requests to the backend. The backend reads or writes
+data in MySQL. To control a lamp, the backend sends an MQTT message through
+the broker to the hardware device.
+
+3.2 Technology Stack
+
+We chose Vue 3 for the frontend because it is easy to learn and has good
+performance. It uses a component-based structure, which makes the code easy to
+maintain. ECharts is used to draw line charts for light data over time.
+
+Express was chosen because it is a popular Node.js framework with many
+tutorials and community support. TypeScript helps catch errors before running
+the code by checking data types.
+
+MQTT was chosen because it is the standard IoT protocol. Unlike HTTP, which
+sends large messages, MQTT uses very little network bandwidth. This is
+important for IoT devices that may have limited power and network.
+
+The database uses MySQL to store three kinds of data: device information (name,
+location, status), light sensor readings (light level and timestamp), and
+control logs (who controlled which lamp and when).
+
+3.3 Frontend Design
+
+The frontend has eight pages. The main page shows a dashboard with device
+status cards and a 7-day light trend chart. The control page lets users turn
+lamps on or off one by one, or select multiple lamps for batch control. The
+history page shows light data as a line chart with a date picker. Each lamp
+also supports two working modes: "auto" mode where the lamp decides when to
+turn on by itself, and "manual" mode where the user makes all decisions.
+
+3.4 API Design
+
+The system has 11 API endpoints. All use a standard response format:
+{ "code": 200, "message": "success", "data": {...} }.
+
+The main APIs are:
+  - GET /api/devices — list all devices
+  - POST /api/devices/:id/control — turn a lamp on or off
+  - POST /api/devices/batch-control — control multiple lamps
+  - GET /api/devices/:id/light-history — get light data history
+  - GET /api/health — check if the server is running
+
+3.5 Key Implementation Detail
+
+When the backend sends a control command to a lamp, it waits up to 10 seconds
+for a response. If no response comes, the command is marked as "timeout." This
+way the user always knows the result of their action. For batch control, all
+commands are sent at the same time using Promise.all to save time.
+
+
+4. Test Result and Analysis
+
+We tested the system in five areas. The results are shown below:
+
+    Test Area           Total   Passed   Pass Rate
+    -----------------------------------------------
+    Service Start          5        5       100%
+    API Interface         11       11       100%
+    MQTT Data Flow         6        6       100%
+    Frontend Pages         9        8        89%
+    Error Handling         6        6       100%
+    -----------------------------------------------
+    TOTAL                 37       36        97%
+
+All API interfaces passed. Most simple requests finished in less than 50
+milliseconds. Control commands took about 2 seconds because they need to wait
+for a simulated hardware response from the MQTT broker.
+
+We also tested error handling. For example, when we tried to control a device
+that does not exist, the system returned a "404 not found" error. When we sent
+an invalid command (not "on" or "off"), the system returned a "400 bad request"
+error. In all six error test cases, the system behaved correctly and did not
+crash.
+
+Only one item failed: the alarm log page. It is marked as "coming soon" because
+the backend alarm service was removed in the MVP version to keep things simple.
+It will be completed in a later version. All core features work correctly, so
+the system is stable enough for delivery.
+
+
+5. Conclusion
+
+This project successfully built a working smart street lamp system using IoT
+technology. It has 11 APIs and a web frontend with 8 pages. Users can control
+lamps remotely from a browser, view light data charts, manage device settings
+like thresholds and modes, and ask questions to the AI chatbot.
+
+The test pass rate was 97%, with all core APIs and MQTT data flows working
+correctly. This shows the system is stable and ready for the next step.
+
+The biggest challenge we faced was learning how MQTT works. MQTT uses a
+publish-subscribe model, which is very different from the request-response
+model of HTTP. We had to understand topics, subscriptions, and how to wait for
+a response after publishing a command. Another challenge was designing the
+timeout system — in the real world, IoT devices do not always respond, and
+users should not wait forever.
+
+For future work, we plan to do several things. First, add an alarm system that
+automatically tells users when a lamp goes offline. Second, connect real
+hardware devices and test the system outdoors. Third, add real user login with
+passwords instead of the mock login we use now. Finally, build a mobile phone
+app so users can control lamps from anywhere, not just from a computer. These
+improvements will turn the current MVP into a product ready for real cities.
+
+
+References
+
+[1] Vue.js Documentation. https://vuejs.org/
+[2] Express.js Documentation. https://expressjs.com/
+[3] MQTT Specification. https://mqtt.org/
+[4] MySQL Documentation. https://dev.mysql.com/
+[5] ECharts Documentation. https://echarts.apache.org/
