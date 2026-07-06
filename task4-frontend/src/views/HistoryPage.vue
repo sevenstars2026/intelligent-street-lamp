@@ -97,7 +97,8 @@ const expectedPoints = computed(() => {
   if (activePreset.value === '7d') return 7
   return 30
 })
-const dataPoints = computed(() => chartData.value.length)
+const validChartData = computed(() => chartData.value.filter(v => Number.isFinite(v)))
+const dataPoints = computed(() => validChartData.value.length)
 const dataMessage = computed(() => {
   if (chartLoading.value) return ''
   if (dataSource.value === 'mock') return '模拟数据'
@@ -106,11 +107,11 @@ const dataMessage = computed(() => {
 })
 
 const avgLight = computed(() => {
-  if (!chartData.value.length) return 0
-  return Math.round(chartData.value.reduce((a, b) => a + b, 0) / chartData.value.length)
+  if (!validChartData.value.length) return 0
+  return Math.round(validChartData.value.reduce((a, b) => a + b, 0) / validChartData.value.length)
 })
-const maxLight = computed(() => Math.max(...chartData.value, 0))
-const minLight = computed(() => Math.min(...chartData.value, 9999) === 9999 ? 0 : Math.min(...chartData.value))
+const maxLight = computed(() => validChartData.value.length ? Math.max(...validChartData.value) : 0)
+const minLight = computed(() => validChartData.value.length ? Math.min(...validChartData.value) : 0)
 const timeRange = computed(() => activePreset.value === '24h' ? '24小时' : activePreset.value === '7d' ? '7天' : '30天')
 
 function animateNumber(refObj, target, duration = 600) {
@@ -161,6 +162,16 @@ function chartColors() {
   }
 }
 
+function buildAxisLabelOption(color) {
+  return {
+    color,
+    fontSize: 11,
+    interval: 0,
+    rotate: activePreset.value === '24h' ? 35 : 0,
+    hideOverlap: false,
+  }
+}
+
 function initChart() {
   if (!chartContainer.value) return
   chart = echarts.init(chartContainer.value)
@@ -181,17 +192,13 @@ function updateChartOption() {
       borderColor: c.tooltipBorder,
       textStyle: { color: c.tooltipText, fontSize: 13 },
     },
-    grid: { top: 20, right: 40, bottom: 30, left: 60 },
+    grid: { top: 20, right: 40, bottom: activePreset.value === '24h' ? 48 : 30, left: 60 },
     xAxis: {
       type: 'category',
       data: chartLabels.value,
       axisLine: { lineStyle: { color: c.axisLine } },
       axisTick: { show: false },
-      axisLabel: {
-        color: c.axisLabel,
-        fontSize: 11,
-        interval: (_index, value) => value !== '',
-      },
+      axisLabel: buildAxisLabelOption(c.axisLabel),
     },
     yAxis: {
       type: 'value',
@@ -226,7 +233,7 @@ async function loadData() {
     if (raw && raw.length > 0) {
       const list = raw.map(normalizeLightRecord)
       const result = buildChartData(list, activePreset.value)
-      if (result.values.length > 0) {
+      if (result.values.some(v => Number.isFinite(v))) {
         chartLabels.value = result.labels
         chartData.value = result.values
         dataSource.value = 'real'
@@ -261,7 +268,8 @@ watch(theme, () => {
   const c = chartColors()
   chart.setOption({
     tooltip: { backgroundColor: c.tooltipBg, borderColor: c.tooltipBorder, textStyle: { color: c.tooltipText } },
-    xAxis: { data: chartLabels.value, axisLine: { lineStyle: { color: c.axisLine } }, axisLabel: { color: c.axisLabel } },
+    grid: { bottom: activePreset.value === '24h' ? 48 : 30 },
+    xAxis: { data: chartLabels.value, axisLine: { lineStyle: { color: c.axisLine } }, axisLabel: buildAxisLabelOption(c.axisLabel) },
     yAxis: { nameTextStyle: { color: c.axisLabel }, splitLine: { lineStyle: { color: c.splitLine } }, axisLabel: { color: c.axisLabel } },
   })
 })
