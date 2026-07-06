@@ -200,6 +200,12 @@ export class AlarmService {
   private static offlineCheckRunning = false;
 
   static startScheduler(): void {
+    // 防止重复启动
+    if (this.offlineCheckTimer) {
+      console.warn('[AlarmScheduler] already started, ignoring duplicate call');
+      return;
+    }
+
     // 读取检查间隔（秒），默认 30 秒
     const checkIntervalSec = Math.max(
       10,

@@ -457,10 +457,12 @@ onMounted(async () => {
   autoRefreshTimer = setInterval(async () => {
     const currentId = selectedDevice.value?.id || selectedDevice.value?.deviceId
     await loadDevices()
-    if (currentId) {
-      const refreshed = devices.value.find(d => (d.id || d.deviceId) === currentId)
-      if (refreshed) selectedDevice.value = refreshed
-    }
+    if (!currentId) return
+    // 刷新期间用户可能手动切换了设备，此时不应覆盖用户的选择
+    const afterRefreshId = selectedDevice.value?.id || selectedDevice.value?.deviceId
+    if (afterRefreshId !== currentId) return
+    const refreshed = devices.value.find(d => (d.id || d.deviceId) === currentId)
+    if (refreshed) selectedDevice.value = refreshed
   }, 30000)
 })
 
