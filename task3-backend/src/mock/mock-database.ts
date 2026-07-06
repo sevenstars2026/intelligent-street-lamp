@@ -61,7 +61,20 @@ export class MockDatabase {
       updatedAt: new Date()
     });
 
-    console.log('MockDatabase initialized with sample data');
+    // 种子 8 条告警样本数据
+    this.alarms = [
+      { id: 1, deviceId: 'lamp_001', deviceName: '路灯001', alarmType: 'offline',        alarmLevel: 'high',     status: 'active',   message: '设备 路灯001(lamp_001) 已离线超过30秒，最后心跳时间 2026-07-06 08:31:26', createdAt: new Date('2026-07-06T10:31:56'), handledAt: null, handlerId: null, handlerName: null },
+      { id: 2, deviceId: 'lamp_002', deviceName: '路灯002', alarmType: 'offline',        alarmLevel: 'high',     status: 'active',   message: '设备 路灯002(lamp_002) 已离线超过30秒，最后心跳时间 2026-07-06 08:31:26', createdAt: new Date('2026-07-06T10:31:56'), handledAt: null, handlerId: null, handlerName: null },
+      { id: 3, deviceId: 'lamp_003', deviceName: '路灯003', alarmType: 'offline',        alarmLevel: 'critical', status: 'active',   message: '设备 路灯003(lamp_003) 已离线超过2小时，最后心跳时间 2026-07-06 08:31:26', createdAt: new Date('2026-07-06T08:31:26'), handledAt: null, handlerId: null, handlerName: null },
+      { id: 4, deviceId: 'lamp_001', deviceName: '路灯001', alarmType: 'control_failed', alarmLevel: 'medium',   status: 'resolved', message: '设备 路灯001(lamp_001) 控制失败：设备无响应',                       createdAt: new Date('2026-07-05T18:20:00'), handledAt: new Date('2026-07-05T19:00:00'), handlerId: 1, handlerName: '管理员' },
+      { id: 5, deviceId: 'lamp_002', deviceName: '路灯002', alarmType: 'control_failed', alarmLevel: 'medium',   status: 'active',   message: '设备 路灯002(lamp_002) 控制失败：超时未确认',                       createdAt: new Date('2026-07-06T08:45:00'), handledAt: null, handlerId: null, handlerName: null },
+      { id: 6, deviceId: 'lamp_001', deviceName: '路灯001', alarmType: 'frequent_switch',alarmLevel: 'low',      status: 'active',   message: '设备 路灯001(lamp_001) 近10分钟内开关操作达7次，触发频繁开关告警',      createdAt: new Date('2026-07-06T09:15:00'), handledAt: null, handlerId: null, handlerName: null },
+      { id: 7, deviceId: 'lamp_003', deviceName: '路灯003', alarmType: 'threshold_anomaly',alarmLevel:'medium',  status: 'resolved', message: '设备 路灯003(lamp_003) 光照传感器读数异常，连续3次超过阈值范围',        createdAt: new Date('2026-07-04T14:30:00'), handledAt: new Date('2026-07-04T16:00:00'), handlerId: 1, handlerName: '管理员' },
+      { id: 8, deviceId: 'lamp_002', deviceName: '路灯002', alarmType: 'frequent_switch',alarmLevel: 'low',      status: 'resolved', message: '设备 路灯002(lamp_002) 近10分钟内开关操作达5次，触发频繁开关告警',      createdAt: new Date('2026-07-05T22:10:00'), handledAt: new Date('2026-07-05T23:00:00'), handlerId: 1, handlerName: '管理员' },
+    ];
+    this.alarmIdCounter = 9;
+
+    console.log('MockDatabase initialized with sample data (8 alarms)');
   }
 
   // ===== 设备操作 =====

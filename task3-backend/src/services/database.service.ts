@@ -191,6 +191,19 @@ export class DatabaseService {
           ('lamp_002', 200, 600, NOW()),
           ('lamp_003', 200, 600, NOW())
       `);
+      // 种子告警数据（仅当 alarms 表为空时插入 8 条样本）
+      await conn.query(`
+        INSERT IGNORE INTO alarms (id, device_id, device_name, alarm_type, alarm_level, status, message, created_at, handled_at, handler_id, handler_name)
+        VALUES
+          (1, 'lamp_001', '路灯001', 'offline',       'high',     'active',   '设备 路灯001(lamp_001) 已离线超过30秒，最后心跳时间 2026-07-06 08:31:26', '2026-07-06 10:31:56', NULL, NULL, NULL),
+          (2, 'lamp_002', '路灯002', 'offline',       'high',     'active',   '设备 路灯002(lamp_002) 已离线超过30秒，最后心跳时间 2026-07-06 08:31:26', '2026-07-06 10:31:56', NULL, NULL, NULL),
+          (3, 'lamp_003', '路灯003', 'offline',       'critical', 'active',   '设备 路灯003(lamp_003) 已离线超过2小时，最后心跳时间 2026-07-06 08:31:26', '2026-07-06 08:31:26', NULL, NULL, NULL),
+          (4, 'lamp_001', '路灯001', 'control_failed','medium',   'resolved', '设备 路灯001(lamp_001) 控制失败：设备无响应',                       '2026-07-05 18:20:00', '2026-07-05 19:00:00', 1, '管理员'),
+          (5, 'lamp_002', '路灯002', 'control_failed','medium',   'active',   '设备 路灯002(lamp_002) 控制失败：超时未确认',                       '2026-07-06 08:45:00', NULL, NULL, NULL),
+          (6, 'lamp_001', '路灯001', 'frequent_switch','low',     'active',   '设备 路灯001(lamp_001) 近10分钟内开关操作达7次，触发频繁开关告警',      '2026-07-06 09:15:00', NULL, NULL, NULL),
+          (7, 'lamp_003', '路灯003', 'threshold_anomaly','medium','resolved', '设备 路灯003(lamp_003) 光照传感器读数异常，连续3次超过阈值范围',        '2026-07-04 14:30:00', '2026-07-04 16:00:00', 1, '管理员'),
+          (8, 'lamp_002', '路灯002', 'frequent_switch','low',     'resolved', '设备 路灯002(lamp_002) 近10分钟内开关操作达5次，触发频繁开关告警',      '2026-07-05 22:10:00', '2026-07-05 23:00:00', 1, '管理员')
+      `);
       this.useMock = false;
       console.log('✓ MySQL Database connected');
     } catch (error: any) {
