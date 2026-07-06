@@ -63,7 +63,7 @@ export class AlarmService {
       const offlineDurationSec = (Date.now() - lastHeartbeat.getTime()) / 1000;
 
       // 未超过心跳超时时间 → 设备仍在线
-      if (offlineDurationSec <= heartbeatTimeoutSec) {
+      if (offlineDurationSec < heartbeatTimeoutSec) {
         continue;
       }
 
@@ -197,6 +197,7 @@ export class AlarmService {
 
   private static offlineCheckTimer: ReturnType<typeof setInterval> | null = null;
   private static alarmUpgradeTimer: ReturnType<typeof setInterval> | null = null;
+  private static offlineCheckRunning = false;
 
   static startScheduler(): void {
     // 读取检查间隔（秒），默认 30 秒
@@ -206,16 +207,26 @@ export class AlarmService {
     );
 
     // 立即执行一次
+    this.offlineCheckRunning = true;
     this.checkOfflineDevices().catch((error) => {
       console.error('[AlarmScheduler] initial checkOfflineDevices error:', error);
+    }).finally(() => {
+      this.offlineCheckRunning = false;
     });
 
-    // 定时轮询离线设备（支持 < 1 分钟粒度）
+    // 定时轮询离线设备（支持 < 1 分钟粒度，带防重入保护）
     this.offlineCheckTimer = setInterval(async () => {
+      if (this.offlineCheckRunning) {
+        console.warn('[AlarmScheduler] skipping check: previous run still in progress');
+        return;
+      }
+      this.offlineCheckRunning = true;
       try {
         await this.checkOfflineDevices();
       } catch (error) {
         console.error('[AlarmScheduler] checkOfflineDevices error:', error);
+      } finally {
+        this.offlineCheckRunning = false;
       }
     }, checkIntervalSec * 1000);
 

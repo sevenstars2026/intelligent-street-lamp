@@ -453,9 +453,14 @@ onMounted(async () => {
   if (devices.value.length > 0) {
     selectDevice(devices.value[0])
   }
-  // 每 30 秒自动刷新设备状态
-  autoRefreshTimer = setInterval(() => {
-    loadDevices()
+  // 每 30 秒自动刷新设备状态，并将 selectedDevice 同步到新数组中的对应设备
+  autoRefreshTimer = setInterval(async () => {
+    const currentId = selectedDevice.value?.id || selectedDevice.value?.deviceId
+    await loadDevices()
+    if (currentId) {
+      const refreshed = devices.value.find(d => (d.id || d.deviceId) === currentId)
+      if (refreshed) selectedDevice.value = refreshed
+    }
   }, 30000)
 })
 
