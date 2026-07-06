@@ -28,7 +28,7 @@ const routes = [
     path: '/alarms',
     name: 'Alarms',
     component: () => import('@/views/AlarmPage.vue'),
-    meta: { title: '告警日志' },
+    meta: { title: '告警日志', roles: ['admin'] },
   },
   {
     path: '/',
@@ -44,8 +44,15 @@ const router = createRouter({
 // 导航守卫：未登录 → /login
 router.beforeEach((to) => {
   const loggedIn = localStorage.getItem('loggedIn')
+  const role = localStorage.getItem('role') || 'admin'
+  if (to.name === 'Login' && loggedIn) {
+    return { name: 'Dashboard' }
+  }
   if (to.name !== 'Login' && !loggedIn) {
     return { name: 'Login' }
+  }
+  if (to.meta?.roles && !to.meta.roles.includes(role)) {
+    return { name: 'Dashboard' }
   }
 })
 

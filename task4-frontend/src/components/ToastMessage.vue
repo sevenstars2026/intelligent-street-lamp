@@ -35,7 +35,9 @@ const { toast } = useToast()
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  white-space: nowrap;
+  max-width: calc(100vw - 32px);
+  white-space: normal;
+  word-break: break-word;
 }
 
 .toast-info {

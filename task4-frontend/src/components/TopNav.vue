@@ -297,4 +297,66 @@ function handleRefresh() {
   width: 16px;
   height: 16px;
 }
+
+@media (max-width: 900px) {
+  .topnav {
+    gap: 12px;
+    padding: 0 12px;
+    overflow-x: auto;
+  }
+
+  .brand-text,
+  .update-time {
+    display: none;
+  }
+
+  .topnav-links {
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .topnav-links::-webkit-scrollbar {
+    display: none;
+  }
+
+  .nav-link {
+    padding: 8px 10px;
+    white-space: nowrap;
+  }
+
+  .topnav-right {
+    gap: 6px;
+  }
+
+  .refresh-text,
+  .user-name {
+    display: none;
+  }
+
+  .user-badge {
+    padding: 2px;
+  }
+}
+
+@media (max-width: 560px) {
+  .topnav {
+    height: 52px;
+    gap: 8px;
+  }
+
+  .nav-link {
+    padding: 8px;
+    font-size: 12px;
+  }
+
+  .theme-toggle-btn,
+  .refresh-btn,
+  .logout-btn {
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    justify-content: center;
+  }
+}
 </style>
