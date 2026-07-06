@@ -81,9 +81,10 @@ async function loadLightHistory(deviceId, range) {
 
 // 标准化一条光照记录（后端字段: lightIntensity, timestamp）
 function normalizeLightRecord(r) {
+  const value = Number(r.lightIntensity ?? r.value ?? r.lightValue ?? r.avgLightIntensity ?? 0)
   return {
     time: r.timestamp || r.time,
-    value: r.lightIntensity ?? r.value ?? r.lightValue ?? r.avgLightIntensity ?? 0,
+    value: Number.isFinite(value) ? value : 0,
   }
 }
 
@@ -98,60 +99,85 @@ function generateMockLightData(points) {
   return data
 }
 
-// 构建图表数据：小桶分组（数据点密）+ 隔 N 个桶标一次标签（标签疏、不重复）
+function startOfHour(date) {
+  const d = new Date(date)
+  d.setMinutes(0, 0, 0)
+  return d.getTime()
+}
+
+function startOfDay(date) {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d.getTime()
+}
+
+function bucketStart(time, range) {
+  const d = new Date(time)
+  return range === '24h' ? startOfHour(d) : startOfDay(d)
+}
+
+function sampleBucketValues(vals, subPoints) {
+  if (!vals.length) return Array.from({ length: subPoints }, () => null)
+
+  if (vals.length < subPoints) {
+    const sampled = Array.from({ length: subPoints }, () => null)
+    if (vals.length === 1) {
+      sampled[Math.floor(subPoints / 2)] = vals[0]
+      return sampled
+    }
+
+    vals.forEach((value, index) => {
+      const targetIndex = Math.round(index * (subPoints - 1) / (vals.length - 1))
+      sampled[targetIndex] = value
+    })
+    return sampled
+  }
+
+  return Array.from({ length: subPoints }, (_, index) => {
+    const start = Math.floor(index * vals.length / subPoints)
+    const end = Math.floor((index + 1) * vals.length / subPoints)
+    const slice = vals.slice(start, Math.max(end, start + 1))
+    return Math.round(slice.reduce((sum, value) => sum + value, 0) / slice.length)
+  })
+}
+
+// 构建图表数据：固定生成完整时间窗口，空桶用 null 占位，桶内保留多个采样点
 function buildChartData(records, range) {
   if (!records || records.length === 0) return { labels: [], values: [] }
 
-  // bucketMs: 分桶粒度  labelEvery: 标签间隔(桶数)  subPoints: 每桶采点数
-  // 注：桶大小必须是 label 精度单位的整数倍，确保每个桶的 fmt 输出唯一
   const cfg = {
-    '24h': { bucketMs: 3600000,     labelEvery: 2, subPoints: 5, fmt: d => `${String(d.getHours()).padStart(2, '0')}:00` },
-    '7d':  { bucketMs: 86400000,    labelEvery: 1, subPoints: 5, fmt: d => `${d.getMonth() + 1}/${d.getDate()}` },
-    '30d': { bucketMs: 86400000,    labelEvery: 5, subPoints: 6, fmt: d => `${d.getMonth() + 1}/${d.getDate()}` },
+    '24h': { bucketMs: 3600000, bucketCount: 24, labelEvery: 1, subPoints: 4, fmt: d => `${String(d.getHours()).padStart(2, '0')}:00` },
+    '7d':  { bucketMs: 86400000, bucketCount: 7, labelEvery: 1, subPoints: 8, fmt: d => `${d.getMonth() + 1}/${d.getDate()}` },
+    '30d': { bucketMs: 86400000, bucketCount: 30, labelEvery: 5, subPoints: 3, fmt: d => `${d.getMonth() + 1}/${d.getDate()}` },
   }
-  const { bucketMs, labelEvery, subPoints, fmt } = cfg[range] || cfg['7d']
-
-  // 1. 按时间段分桶
+  const { bucketMs, bucketCount, labelEvery, subPoints, fmt } = cfg[range] || cfg['7d']
+  const now = new Date()
+  const endKey = range === '24h' ? startOfHour(now) : startOfDay(now)
+  const startKey = endKey - (bucketCount - 1) * bucketMs
   const buckets = new Map()
+
+  for (let i = 0; i < bucketCount; i++) {
+    buckets.set(startKey + i * bucketMs, [])
+  }
+
   for (const r of records) {
     const t = new Date(r.time).getTime()
     if (isNaN(t)) continue
-    const key = Math.floor(t / bucketMs) * bucketMs
-    if (!buckets.has(key)) buckets.set(key, [])
+    const key = bucketStart(t, range)
+    if (key < startKey || key > endKey || !buckets.has(key)) continue
     buckets.get(key).push(r.value)
   }
 
-  // 2. 按时间排序
-  const sorted = [...buckets.entries()].sort((a, b) => a[0] - b[0])
-
-  // 桶总数少时不跳标签
-  const effectiveEvery = sorted.length <= labelEvery ? 1 : labelEvery
-
-  // 3. 每个桶采点，按 effectiveEvery 间隔标标签
   const labels = []
   const values = []
-  for (let bi = 0; bi < sorted.length; bi++) {
-    const [bucketKey, vals] = sorted[bi]
-    const showLabel = bi % effectiveEvery === 0
-    const label = showLabel ? fmt(new Date(bucketKey)) : ''
-
-    // 桶内采点
-    let pts
-    if (vals.length <= subPoints) {
-      pts = vals
-    } else {
-      pts = []
-      for (let i = 0; i < subPoints; i++) {
-        const s = Math.floor(i * vals.length / subPoints)
-        const e = Math.floor((i + 1) * vals.length / subPoints)
-        pts.push(Math.round(vals.slice(s, e).reduce((a, v) => a + v, 0) / (e - s)))
-      }
-    }
-
-    const labelIdx = Math.floor(pts.length / 2)
-    for (let i = 0; i < pts.length; i++) {
-      labels.push(i === labelIdx ? label : '')
-      values.push(pts[i])
+  for (let i = 0; i < bucketCount; i++) {
+    const key = startKey + i * bucketMs
+    const vals = buckets.get(key).filter(v => Number.isFinite(v))
+    const samples = sampleBucketValues(vals, subPoints)
+    const labelIndex = Math.floor(subPoints / 2)
+    for (let j = 0; j < subPoints; j++) {
+      labels.push(j === labelIndex && i % labelEvery === 0 ? fmt(new Date(key)) : '')
+      values.push(samples[j])
     }
   }
 
