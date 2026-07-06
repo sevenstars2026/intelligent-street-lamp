@@ -233,12 +233,14 @@
             v-for="d in devices"
             :key="d.id"
             class="batch-check-item"
+            :class="{ disabled: !d.online }"
           >
             <input
               type="checkbox"
               :value="d.id"
               v-model="batchSelected"
               class="batch-checkbox"
+              :disabled="!d.online"
             />
             <span class="pulse-dot" :class="d.online ? 'online' : 'offline'"></span>
             <span class="batch-device-name">{{ d.deviceName || d.name }}</span>
@@ -250,7 +252,7 @@
         <div class="batch-btns">
           <button
             class="switch-btn switch-btn--on ripple"
-            :disabled="batchSelected.length === 0 || batchLoading"
+            :disabled="onlineSelectedIds.length === 0 || batchLoading"
             @click="handleBatchControl('on')"
           >
             <svg viewBox="0 0 20 20" fill="currentColor" class="btn-icon">
@@ -260,7 +262,7 @@
           </button>
           <button
             class="switch-btn switch-btn--off ripple"
-            :disabled="batchSelected.length === 0 || batchLoading"
+            :disabled="onlineSelectedIds.length === 0 || batchLoading"
             @click="handleBatchControl('off')"
           >
             <svg viewBox="0 0 20 20" fill="currentColor" class="btn-icon">
@@ -300,6 +302,22 @@ const filteredDevices = computed(() => {
 
 // ---- 选中设备 ----
 const selectedDevice = ref(null)
+let loadDeviceSeq = 0
+
+function getDeviceKey(d) {
+  return d?.id || d?.deviceId
+}
+
+function isCurrentDevice(deviceId, seq) {
+  return seq === loadDeviceSeq && getDeviceKey(selectedDevice.value) === deviceId
+}
+
+function syncSelectedFromDevices(deviceId) {
+  const targetId = deviceId || getDeviceKey(selectedDevice.value)
+  if (!targetId) return
+  const updated = devices.value.find(d => getDeviceKey(d) === targetId)
+  if (updated) selectedDevice.value = updated
+}
 
 function selectDevice(d) {
   selectedDevice.value = d
@@ -308,10 +326,11 @@ function selectDevice(d) {
 }
 
 async function loadDeviceData(deviceId) {
+  const seq = ++loadDeviceSeq
   // 阈值
   try {
     const threshold = await loadDeviceThreshold(deviceId)
-    if (threshold) {
+    if (threshold && isCurrentDevice(deviceId, seq)) {
       thresholdForm.on = threshold.lightThresholdOn ?? threshold.on_threshold ?? threshold.onThreshold ?? 300
       thresholdForm.off = threshold.lightThresholdOff ?? threshold.off_threshold ?? threshold.offThreshold ?? 500
     }
@@ -322,7 +341,7 @@ async function loadDeviceData(deviceId) {
   // 模式
   try {
     const mode = await loadDeviceMode(deviceId)
-    if (mode && selectedDevice.value) {
+    if (mode && isCurrentDevice(deviceId, seq)) {
       selectedDevice.value.mode = mode
     }
   } catch {
@@ -337,12 +356,17 @@ const feedbackType = ref('success')
 
 async function handleControl(command) {
   if (!selectedDevice.value) return
+  if (!selectedDevice.value.online) {
+    showToast('离线设备不可控制', 'warning')
+    return
+  }
+  const deviceId = selectedDevice.value.id
   actionLoading.value = true
   feedbackMsg.value = ''
   try {
-    await controlDevice(selectedDevice.value.id, command)
+    await controlDevice(deviceId, command)
     // 更新本地状态
-    if (selectedDevice.value) {
+    if (getDeviceKey(selectedDevice.value) === deviceId) {
       selectedDevice.value.currentState = command
     }
     feedbackMsg.value = command === 'on' ? '设备已开灯' : '设备已关灯'
@@ -350,6 +374,9 @@ async function handleControl(command) {
     showToast(`设备${command === 'on' ? '开灯' : '关灯'}成功`, 'success')
     // 重新加载设备列表以同步状态
     await loadDevices()
+    if (getDeviceKey(selectedDevice.value) === deviceId) {
+      syncSelectedFromDevices(deviceId)
+    }
   } catch (e) {
     feedbackMsg.value = e.message || '操作失败'
     feedbackType.value = 'error'
@@ -365,14 +392,18 @@ const modeLoading = ref(false)
 
 async function handleSetMode(mode) {
   if (!selectedDevice.value) return
+  const deviceId = selectedDevice.value.id
   modeLoading.value = true
   try {
-    await setDeviceMode(selectedDevice.value.id, mode)
-    if (selectedDevice.value) {
+    await setDeviceMode(deviceId, mode)
+    if (getDeviceKey(selectedDevice.value) === deviceId) {
       selectedDevice.value.mode = mode
     }
     showToast(`已切换为${mode === 'auto' ? '自动' : '手动'}模式`, 'success')
     await loadDevices()
+    if (getDeviceKey(selectedDevice.value) === deviceId) {
+      syncSelectedFromDevices(deviceId)
+    }
   } catch (e) {
     showToast(e.message || '模式切换失败', 'error')
   } finally {
@@ -386,15 +417,25 @@ const thresholdForm = reactive({ on: 300, off: 500 })
 
 async function handleSaveThreshold() {
   if (!selectedDevice.value) return
-  if (thresholdForm.on == null || thresholdForm.off == null) {
+  const onValue = Number(thresholdForm.on)
+  const offValue = Number(thresholdForm.off)
+  if (thresholdForm.on == null || thresholdForm.off == null || !Number.isFinite(onValue) || !Number.isFinite(offValue)) {
     showToast('请填写完整的阈值', 'warning')
+    return
+  }
+  if (onValue < 0 || offValue < 0 || onValue > 10000 || offValue > 10000) {
+    showToast('阈值范围应在 0-10000 lux', 'warning')
+    return
+  }
+  if (onValue >= offValue) {
+    showToast('开灯阈值必须小于关灯阈值', 'warning')
     return
   }
   thresholdLoading.value = true
   try {
     await setDeviceThreshold(selectedDevice.value.id, {
-      lightThresholdOn: Number(thresholdForm.on),
-      lightThresholdOff: Number(thresholdForm.off),
+      lightThresholdOn: onValue,
+      lightThresholdOff: offValue,
     })
     showToast('阈值设置保存成功', 'success')
   } catch (e) {
@@ -408,9 +449,12 @@ async function handleSaveThreshold() {
 const batchExpanded = ref(false)
 const batchSelected = ref([])
 const batchLoading = ref(false)
+const onlineSelectedIds = computed(() => {
+  return batchSelected.value.filter(id => devices.value.some(d => d.id === id && d.online))
+})
 
 function selectAllBatch() {
-  batchSelected.value = devices.value.map(d => d.id)
+  batchSelected.value = devices.value.filter(d => d.online).map(d => d.id)
 }
 
 function clearBatchSelection() {
@@ -418,16 +462,23 @@ function clearBatchSelection() {
 }
 
 async function handleBatchControl(command) {
-  if (batchSelected.value.length === 0) return
+  const ids = onlineSelectedIds.value
+  if (ids.length === 0) {
+    showToast('请选择在线设备', 'warning')
+    return
+  }
+  if (ids.length < batchSelected.value.length) {
+    showToast('已自动跳过离线设备', 'warning')
+  }
   batchLoading.value = true
   try {
-    await batchControl(batchSelected.value, command)
+    await batchControl(ids, command)
     showToast(`批量${command === 'on' ? '开灯' : '关灯'}成功`, 'success')
     await loadDevices()
+    batchSelected.value = batchSelected.value.filter(id => devices.value.some(d => d.id === id && d.online))
     // 刷新当前选中设备状态
     if (selectedDevice.value) {
-      const updated = devices.value.find(d => d.id === selectedDevice.value.id)
-      if (updated) selectedDevice.value = updated
+      syncSelectedFromDevices(selectedDevice.value.id)
     }
   } catch (e) {
     showToast(e.message || '批量控制失败', 'error')
@@ -447,12 +498,21 @@ function formatTime(t) {
 
 // ---- 生命周期 ----
 let autoRefreshTimer = null
+let refreshHandler = null
 
 onMounted(async () => {
   await loadDevices()
   if (devices.value.length > 0) {
     selectDevice(devices.value[0])
   }
+  refreshHandler = async () => {
+    const currentId = getDeviceKey(selectedDevice.value)
+    await loadDevices()
+    syncSelectedFromDevices(currentId)
+    batchSelected.value = batchSelected.value.filter(id => devices.value.some(d => d.id === id && d.online))
+    if (currentId) loadDeviceData(currentId)
+  }
+  window.addEventListener('global-refresh', refreshHandler)
   // 每 30 秒自动刷新设备状态，并将 selectedDevice 同步到新数组中的对应设备
   autoRefreshTimer = setInterval(async () => {
     const currentId = selectedDevice.value?.id || selectedDevice.value?.deviceId
@@ -463,10 +523,14 @@ onMounted(async () => {
     if (afterRefreshId !== currentId) return
     const refreshed = devices.value.find(d => (d.id || d.deviceId) === currentId)
     if (refreshed) selectedDevice.value = refreshed
+    batchSelected.value = batchSelected.value.filter(id => devices.value.some(d => d.id === id && d.online))
   }, 30000)
 })
 
 onUnmounted(() => {
+  if (refreshHandler) {
+    window.removeEventListener('global-refresh', refreshHandler)
+  }
   if (autoRefreshTimer) {
     clearInterval(autoRefreshTimer)
     autoRefreshTimer = null
@@ -1079,10 +1143,23 @@ onUnmounted(() => {
   background: rgba(101, 138, 228, 0.05);
 }
 
+.batch-check-item.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.batch-check-item.disabled:hover {
+  background: transparent;
+}
+
 .batch-checkbox {
   accent-color: var(--color-brand);
   cursor: pointer;
   flex-shrink: 0;
+}
+
+.batch-checkbox:disabled {
+  cursor: not-allowed;
 }
 
 .batch-device-name {

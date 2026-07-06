@@ -4,9 +4,21 @@
     <div class="page-toolbar glass-card glow-border animate-fade-in-up">
       <div class="toolbar-left">
         <h2 class="toolbar-title">告警日志</h2>
-        <span class="toolbar-count" v-if="!loading">{{ alarms.length }} 条告警</span>
+        <span class="toolbar-count" v-if="!loading">{{ totalCount }} 条告警</span>
       </div>
       <div class="toolbar-right">
+        <select v-model="statusFilter" class="toolbar-select" @change="handleFilterChange">
+          <option value="">全部状态</option>
+          <option value="active">待处理</option>
+          <option value="resolved">已解决</option>
+        </select>
+        <select v-model="levelFilter" class="toolbar-select" @change="handleFilterChange">
+          <option value="">全部等级</option>
+          <option value="critical">严重</option>
+          <option value="high">高</option>
+          <option value="medium">中</option>
+          <option value="low">低</option>
+        </select>
         <button class="refresh-btn-small ripple" @click="loadAlarmData" :disabled="loading">
           <svg viewBox="0 0 20 20" fill="currentColor" class="refresh-icon-sm" :class="{ spinning: loading }">
             <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
@@ -50,6 +62,8 @@
               <th>状态</th>
               <th>告警描述</th>
               <th>发生时间</th>
+              <th>处理人</th>
+              <th>操作</th>
             </tr>
           </thead>
           <tbody>
@@ -76,9 +90,27 @@
               </td>
               <td class="td-msg">{{ a.message || '—' }}</td>
               <td class="td-mono td-time">{{ formatTime(a.createdAt) }}</td>
+              <td>{{ a.handlerName || '—' }}</td>
+              <td>
+                <button
+                  v-if="a.status === 'active'"
+                  class="resolve-btn"
+                  :disabled="resolvingId === a.alarmId"
+                  @click="handleResolve(a)"
+                >
+                  {{ resolvingId === a.alarmId ? '处理中...' : '处理' }}
+                </button>
+                <span v-else class="handled-text">{{ formatTime(a.handledAt) }}</span>
+              </td>
             </tr>
           </tbody>
         </table>
+      </div>
+
+      <div class="pagination-bar" v-if="!loading && totalPages > 1">
+        <button class="page-btn" :disabled="currentPage <= 1" @click="goPage(currentPage - 1)">上一页</button>
+        <span class="page-info">第 {{ currentPage }} / {{ totalPages }} 页</span>
+        <button class="page-btn" :disabled="currentPage >= totalPages" @click="goPage(currentPage + 1)">下一页</button>
       </div>
 
       <!-- 错误提示 -->
@@ -91,12 +123,24 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useAlarms } from '@/composables/useAlarms.js'
+import { useToast } from '@/composables/useToast.js'
 
-const { alarms, loading, error, loadAlarms, getLevelConfig } = useAlarms()
+const { alarms, loading, error, pagination, loadAlarms, resolveAlarm, getLevelConfig } = useAlarms()
+const { showToast } = useToast()
 
 let refreshTimer = null
+let refreshHandler = null
+
+const statusFilter = ref('')
+const levelFilter = ref('')
+const currentPage = ref(1)
+const pageSize = ref(20)
+const resolvingId = ref(null)
+
+const totalCount = computed(() => pagination.value.total || alarms.value.length)
+const totalPages = computed(() => Math.max(1, pagination.value.totalPages || 1))
 
 function typeLabel(type) {
   const map = {
@@ -117,17 +161,49 @@ function formatTime(t) {
 }
 
 async function loadAlarmData() {
-  await loadAlarms()
+  await loadAlarms({
+    status: statusFilter.value || undefined,
+    level: levelFilter.value || undefined,
+    page: currentPage.value,
+    pageSize: pageSize.value,
+  })
+}
+
+function handleFilterChange() {
+  currentPage.value = 1
+  loadAlarmData()
+}
+
+function goPage(page) {
+  currentPage.value = Math.min(Math.max(page, 1), totalPages.value)
+  loadAlarmData()
+}
+
+async function handleResolve(alarm) {
+  if (!alarm?.alarmId || !window.confirm(`确认处理告警 ${alarm.alarmId}？`)) return
+  resolvingId.value = alarm.alarmId
+  try {
+    await resolveAlarm(alarm.alarmId, '前端确认处理')
+    showToast('告警已处理', 'success')
+    await loadAlarmData()
+  } catch (e) {
+    showToast(e.message || '处理告警失败', 'error')
+  } finally {
+    resolvingId.value = null
+  }
 }
 
 onMounted(() => {
   loadAlarmData()
+  refreshHandler = () => loadAlarmData()
+  window.addEventListener('global-refresh', refreshHandler)
   // 每60秒自动刷新
   refreshTimer = setInterval(loadAlarmData, 60000)
 })
 
 onUnmounted(() => {
   if (refreshTimer) clearInterval(refreshTimer)
+  if (refreshHandler) window.removeEventListener('global-refresh', refreshHandler)
 })
 </script>
 
@@ -172,6 +248,24 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.toolbar-select {
+  padding: 6px 28px 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-subtle);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text-primary);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  outline: none;
+}
+
+.toolbar-select option {
+  color: var(--color-text-primary);
+  background: var(--color-bg-secondary);
 }
 
 .refresh-btn-small {
@@ -294,6 +388,51 @@ onUnmounted(() => {
 .status-tag.resolved {
   color: var(--color-status-online);
   background: rgba(34, 197, 94, 0.1);
+}
+
+.resolve-btn,
+.page-btn {
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--color-border-subtle);
+  background: rgba(101, 138, 228, 0.1);
+  color: var(--color-brand-soft);
+  font-size: 12px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+.resolve-btn:hover:not(:disabled),
+.page-btn:hover:not(:disabled) {
+  border-color: var(--color-border-glow);
+  background: rgba(101, 138, 228, 0.16);
+}
+
+.resolve-btn:disabled,
+.page-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.handled-text {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+.page-info {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-family: var(--font-mono);
 }
 
 /* ===== 骨架屏 ===== */

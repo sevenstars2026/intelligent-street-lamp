@@ -21,7 +21,7 @@
 </template>
 
 <script setup>
-import { ref, computed, provide, reactive } from 'vue'
+import { ref, computed, provide, reactive, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import TopNav from '@/components/TopNav.vue'
 import ToastMessage from '@/components/ToastMessage.vue'
@@ -45,6 +45,15 @@ const currentUser = reactive({
   roleName: localStorage.getItem('role') === 'municipal' ? '市政人员' : '路灯管理员',
 })
 
+function syncCurrentUser() {
+  const role = localStorage.getItem('role') || 'admin'
+  currentUser.username = localStorage.getItem('username') || ''
+  currentUser.nickname = localStorage.getItem('nickname') || '管理员'
+  currentUser.role = role
+  currentUser.avatar = localStorage.getItem('avatar') || '管'
+  currentUser.roleName = role === 'municipal' ? '市政人员' : '路灯管理员'
+}
+
 // ===== 刷新 =====
 const lastUpdate = ref('')
 
@@ -60,8 +69,19 @@ function handleLogout() {
   localStorage.removeItem('nickname')
   localStorage.removeItem('role')
   localStorage.removeItem('avatar')
+  syncCurrentUser()
   router.push('/login')
 }
+
+onMounted(() => {
+  window.addEventListener('auth-changed', syncCurrentUser)
+  window.addEventListener('storage', syncCurrentUser)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('auth-changed', syncCurrentUser)
+  window.removeEventListener('storage', syncCurrentUser)
+})
 </script>
 
 <style scoped>

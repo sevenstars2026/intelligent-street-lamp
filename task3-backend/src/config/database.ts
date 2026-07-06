@@ -17,6 +17,9 @@ export function getPool(): mysql.Pool {
       database: process.env.DB_NAME || 'smart_lamp',
       connectionLimit: 10,
       queueLimit: 0,
+      connectTimeout: 10000,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 0,
       timezone: '+08:00',
     });
     console.log('[Database] Connection pool created');

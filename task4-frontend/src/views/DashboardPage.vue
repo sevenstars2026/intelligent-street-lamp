@@ -44,11 +44,11 @@
       <!-- 离线告警 -->
       <StatCard
         label="离线告警"
-        :value="offlineCount"
+        :value="offlineAlarmCount"
         unit="台"
         :subtitle="offlineSubtitle"
-        :valueColor="offlineCount > 0 ? '#ef4444' : '#4ade80'"
-        :iconColor="offlineCount > 0 ? '#ef4444' : '#4ade80'"
+        :valueColor="offlineAlarmCount > 0 ? '#ef4444' : '#4ade80'"
+        :iconColor="offlineAlarmCount > 0 ? '#ef4444' : '#4ade80'"
       >
         <template #icon>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="stat-icon-svg">
@@ -77,11 +77,11 @@
 
     <!-- ===== 离线告警条 ===== -->
     <Transition name="alert-bar">
-      <div class="alert-bar" v-if="offlineCount > 0 && !alertDismissed">
+      <div class="alert-bar" v-if="offlineAlarmCount > 0 && !alertDismissed">
         <svg viewBox="0 0 20 20" fill="currentColor" class="alert-icon">
           <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
         </svg>
-        <span class="alert-text">以下设备离线：<strong>{{ offlineDeviceNames }}</strong></span>
+        <span class="alert-text">以下设备存在离线告警：<strong>{{ offlineAlarmDeviceNames }}</strong></span>
         <button class="alert-close" @click="alertDismissed = true" title="关闭">
           <svg viewBox="0 0 20 20" fill="currentColor" class="close-icon">
             <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"/>
@@ -96,7 +96,7 @@
       <LightChart
         v-else
         title="近7天光照趋势"
-        subtitle="所有设备平均光照强度"
+        subtitle="默认设备光照强度"
         :xData="chartXData"
         :yData="chartYData"
       />
@@ -119,6 +119,7 @@ import StatCard from '@/components/StatCard.vue'
 import LightChart from '@/components/LightChart.vue'
 import DeviceTable from '@/components/DeviceTable.vue'
 import { useDevices } from '@/composables/useDevices.js'
+import { getAlarms } from '@/utils/api.ts'
 
 const {
   devices, loading, error,
@@ -128,14 +129,29 @@ const {
 
 // ---- 告警条 ----
 const alertDismissed = ref(false)
+const offlineAlarmError = ref(false)
+const activeOfflineAlarms = ref([])
 
 const offlineDeviceNames = computed(() => {
   const offline = devices.value.filter(d => !d.online)
   return offline.map(d => d.deviceName || d.name || d.deviceId || d.id).join('、') || '—'
 })
 
+const offlineAlarmCount = computed(() => {
+  return offlineAlarmError.value ? offlineCount.value : activeOfflineAlarms.value.length
+})
+
+const offlineAlarmDeviceNames = computed(() => {
+  if (offlineAlarmError.value) return offlineDeviceNames.value
+  return activeOfflineAlarms.value
+    .map(a => a.deviceName || a.device_name || a.deviceId || a.device_id)
+    .filter(Boolean)
+    .join('、') || '—'
+})
+
 const offlineSubtitle = computed(() => {
-  if (offlineCount.value === 0) return '全部设备在线'
+  if (offlineAlarmError.value) return '告警接口异常，已按设备状态降级'
+  if (offlineAlarmCount.value === 0) return '暂无活动告警'
   return '需要立即关注'
 })
 
@@ -155,6 +171,18 @@ const modeText = computed(() => {
 const chartLoading = ref(true)
 const chartXData = ref([])
 const chartYData = ref([])
+
+async function loadOfflineAlarms() {
+  try {
+    const res = await getAlarms({ status: 'active', alarmType: 'offline', pageSize: 100 })
+    const list = res.data?.alarms || res.data || []
+    activeOfflineAlarms.value = Array.isArray(list) ? list : []
+    offlineAlarmError.value = false
+  } catch {
+    activeOfflineAlarms.value = []
+    offlineAlarmError.value = true
+  }
+}
 
 async function loadChartData() {
   chartLoading.value = true
@@ -195,17 +223,22 @@ let autoRefreshTimer = null
 
 onMounted(() => {
   loadDevices().then(() => {
+    loadOfflineAlarms()
     loadChartData()
   })
   refreshHandler = () => {
     alertDismissed.value = false
-    loadDevices().then(() => loadChartData())
+    loadDevices().then(() => {
+      loadOfflineAlarms()
+      loadChartData()
+    })
   }
   window.addEventListener('global-refresh', refreshHandler)
 
   // 每 30 秒自动刷新设备状态（不重新加载图表）
   autoRefreshTimer = setInterval(() => {
     loadDevices()
+    loadOfflineAlarms()
   }, 30000)
 })
 

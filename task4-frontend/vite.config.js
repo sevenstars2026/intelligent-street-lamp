@@ -18,5 +18,16 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vue: ['vue', 'vue-router'],
+          echarts: ['echarts'],
+          vendor: ['axios']
+        }
+      }
+    }
   }
 })

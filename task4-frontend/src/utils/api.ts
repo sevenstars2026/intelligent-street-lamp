@@ -67,20 +67,33 @@ export function getDeviceLightHistory(deviceId: string, params: { startTime: str
     return api.get(`/devices/${deviceId}/light-history`, { params })
 }
 
+// ===== 告警 =====
+export function getAlarms(params?: {
+    status?: 'active' | 'resolved' | string
+    deviceId?: string
+    alarmType?: string
+    alarmLevel?: string
+    level?: string
+    page?: number
+    pageSize?: number
+}) {
+    const query = { ...(params || {}) }
+    if (query.level && !query.alarmLevel) {
+        query.alarmLevel = query.level
+    }
+    delete query.level
+    return api.get('/alarms', { params: query })
+}
+
+export function getAlarm(alarmId: string | number) {
+    return api.get(`/alarms/${alarmId}`)
+}
+
+export function resolveAlarm(alarmId: string | number, note?: string) {
+    return api.put(`/alarms/${alarmId}/resolve`, { note })
+}
+
 // ===== 健康检查 =====
 export function getHealth() { return api.get('/health') }
-
-// ===== 告警相关 (NEW) =====
-export function getAlarms(params?: { level?: string; status?: string }) {
-  return api.get('/alarms', { params })
-}
-
-export function getAlarm(alarmId: string) {
-  return api.get(`/alarms/${alarmId}`)
-}
-
-export function resolveAlarm(alarmId: string) {
-  return api.put(`/alarms/${alarmId}/resolve`)
-}
 
 export default api

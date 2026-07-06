@@ -23,8 +23,10 @@
         </div>
       </div>
       <div class="filter-right">
+        <span class="source-tag" :class="dataSource" v-if="dataMessage">{{ dataMessage }}</span>
         <span class="filter-hint" v-if="dataPoints > 0">{{ dataPoints }} 条数据点</span>
         <span class="filter-hint" v-else-if="chartLoading">加载中...</span>
+        <span class="filter-hint" v-else>暂无数据</span>
       </div>
     </div>
 
@@ -57,8 +59,13 @@
 
 <script setup>
 import { ref, computed, inject, onMounted, onUnmounted, watch } from 'vue'
-import * as echarts from 'echarts'
+import * as echarts from 'echarts/core'
+import { LineChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent } from 'echarts/components'
+import { CanvasRenderer } from 'echarts/renderers'
 import { useDevices } from '@/composables/useDevices.js'
+
+echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
 
 const { devices, loadDevices, loadLightHistory, generateMockLightData, normalizeLightRecord, buildChartData } = useDevices()
 const theme = inject('theme', ref('dark'))
@@ -82,12 +89,20 @@ const chartLabels = ref([])
 const displayAvg = ref(0)
 const displayMax = ref(0)
 const displayMin = ref(0)
+const dataSource = ref('real')
 
-const dataPoints = computed(() => {
+const expectedPoints = computed(() => {
   // 与 buildChartData 桶大小一致：24h=24(每小时), 7d=7(每天), 30d=30(每天)
   if (activePreset.value === '24h') return 24
   if (activePreset.value === '7d') return 7
   return 30
+})
+const dataPoints = computed(() => chartData.value.length)
+const dataMessage = computed(() => {
+  if (chartLoading.value) return ''
+  if (dataSource.value === 'mock') return '模拟数据'
+  if (dataSource.value === 'error') return '接口异常，显示模拟数据'
+  return ''
 })
 
 const avgLight = computed(() => {
@@ -114,7 +129,7 @@ function animateNumber(refObj, target, duration = 600) {
 
 function generateLabels() {
   const now = new Date()
-  const n = dataPoints.value
+  const n = expectedPoints.value
   // 与 buildChartData 一致：24h每2h, 7d每天, 30d每5天
   const labelEvery = activePreset.value === '24h' ? 2 : activePreset.value === '7d' ? 1 : 5
 
@@ -211,15 +226,24 @@ async function loadData() {
     if (raw && raw.length > 0) {
       const list = raw.map(normalizeLightRecord)
       const result = buildChartData(list, activePreset.value)
-      chartLabels.value = result.labels
-      chartData.value = result.values
+      if (result.values.length > 0) {
+        chartLabels.value = result.labels
+        chartData.value = result.values
+        dataSource.value = 'real'
+      } else {
+        chartLabels.value = generateLabels()
+        chartData.value = generateMockLightData(expectedPoints.value)
+        dataSource.value = 'mock'
+      }
     } else {
       chartLabels.value = generateLabels()
-      chartData.value = generateMockLightData(dataPoints.value)
+      chartData.value = generateMockLightData(expectedPoints.value)
+      dataSource.value = 'mock'
     }
   } catch {
     chartLabels.value = generateLabels()
-    chartData.value = generateMockLightData(dataPoints.value)
+    chartData.value = generateMockLightData(expectedPoints.value)
+    dataSource.value = 'error'
   } finally {
     chartLoading.value = false
     updateChartOption()
@@ -349,10 +373,27 @@ onUnmounted(() => {
   border-color: rgba(101, 138, 228, 0.2);
 }
 
-.filter-right { display: flex; align-items: center; }
+.filter-right { display: flex; align-items: center; gap: 8px; }
 
 .filter-hint {
   font-size: 11px; color: var(--color-text-muted); font-family: var(--font-mono);
+}
+
+.source-tag {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.source-tag.mock {
+  color: var(--color-status-warning);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.source-tag.error {
+  color: var(--color-status-offline);
+  background: rgba(239, 68, 68, 0.12);
 }
 
 .chart-immersive {

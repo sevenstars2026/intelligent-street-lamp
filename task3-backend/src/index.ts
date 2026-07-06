@@ -129,7 +129,7 @@ async function start() {
     console.log(`📡 API Base URL: http://localhost:${PORT}/api`);
     console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
     console.log('========================================\n');
-    console.log('MVP Endpoints (11):');
+    console.log('MVP Endpoints:');
     console.log('  GET    /api/health');
     console.log('  GET    /api/devices');
     console.log('  GET    /api/devices/:deviceId');

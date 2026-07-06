@@ -110,6 +110,7 @@ async function doLogin() {
     localStorage.setItem('nickname', u.nickname)
     localStorage.setItem('role', loginForm.role)
     localStorage.setItem('avatar', u.avatar)
+    window.dispatchEvent(new CustomEvent('auth-changed'))
 
     router.push('/dashboard')
   } catch (e) {

@@ -109,6 +109,23 @@ export class AlarmService {
     return 30; // 默认 30 秒
   }
 
+  static async resolveOfflineAlarmsForHeartbeat(deviceId: string): Promise<void> {
+    try {
+      const activeAlarms = await DatabaseService.getAlarms({
+        status: 'active',
+        deviceId,
+        alarmType: 'offline',
+      });
+
+      for (const alarm of activeAlarms) {
+        await DatabaseService.resolveAlarm(alarm.id, 0, '心跳恢复自动处理');
+        console.log(`[AlarmService] ✅ offline alarm resolved for ${deviceId}`);
+      }
+    } catch (error) {
+      console.error('[AlarmService] resolveOfflineAlarmsForHeartbeat error:', error);
+    }
+  }
+
   static async createControlFailedAlarm(deviceId: string, deviceName: string, reason: string): Promise<void> {
     try {
       const existingActiveAlarms = await DatabaseService.getAlarms({

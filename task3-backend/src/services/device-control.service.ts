@@ -267,6 +267,7 @@ export class DeviceControlService {
   private async handleHardwareHeartbeat(deviceId: string): Promise<void> {
     try {
       await DatabaseService.updateHeartbeat(deviceId);
+      await AlarmService.resolveOfflineAlarmsForHeartbeat(deviceId);
       console.log(`[Heartbeat] 💓 ${deviceId} heartbeat updated`);
     } catch (err) {
       console.error(`[Heartbeat] Failed to update heartbeat for ${deviceId}:`, err);

@@ -5,6 +5,12 @@ import { getAlarms, resolveAlarm as resolveAlarmApi } from '@/utils/api.ts'
 const alarms = ref([])
 const loading = ref(false)
 const error = ref(null)
+const pagination = ref({
+  page: 1,
+  pageSize: 20,
+  total: 0,
+  totalPages: 1,
+})
 
 async function loadAlarms(params) {
   loading.value = true
@@ -14,6 +20,13 @@ async function loadAlarms(params) {
     // 后端返回 { code, data: { alarms: [...], pagination: {...} } }
     const list = res.data?.alarms || res.data || []
     alarms.value = (Array.isArray(list) ? list : []).map(normalizeAlarm)
+    const pageInfo = res.data?.pagination || {}
+    pagination.value = {
+      page: pageInfo.page || params?.page || 1,
+      pageSize: pageInfo.pageSize || params?.pageSize || alarms.value.length || 20,
+      total: pageInfo.total ?? alarms.value.length,
+      totalPages: pageInfo.totalPages || Math.max(1, Math.ceil((pageInfo.total ?? alarms.value.length) / (pageInfo.pageSize || params?.pageSize || 20))),
+    }
   } catch (e) {
     error.value = e.message || '加载告警失败'
     console.error('loadAlarms:', e)
@@ -22,9 +35,9 @@ async function loadAlarms(params) {
   }
 }
 
-async function resolveAlarm(alarmId) {
+async function resolveAlarm(alarmId, note) {
   try {
-    const res = await resolveAlarmApi(alarmId)
+    const res = await resolveAlarmApi(alarmId, note)
     // 更新本地列表中对应告警状态
     const idx = alarms.value.findIndex(a => a.alarmId === alarmId)
     if (idx !== -1) {
@@ -48,6 +61,8 @@ function normalizeAlarm(a) {
     status: a.status || 'active',
     message: a.message || a.description || '',
     createdAt: a.createdAt || a.created_at || a.createTime || new Date().toISOString(),
+    handledAt: a.handledAt || a.resolvedAt || a.handled_at || a.resolved_at || '',
+    handlerName: a.handlerName || a.handler_name || a.resolvedBy || '',
   }
 }
 
@@ -64,5 +79,5 @@ function getLevelConfig(level) {
 }
 
 export function useAlarms() {
-  return { alarms, loading, error, loadAlarms, resolveAlarm, getLevelConfig }
+  return { alarms, loading, error, pagination, loadAlarms, resolveAlarm, getLevelConfig }
 }
