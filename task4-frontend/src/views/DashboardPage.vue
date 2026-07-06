@@ -191,6 +191,7 @@ function useMockData() {
 
 // ---- 生命周期 ----
 let refreshHandler = null
+let autoRefreshTimer = null
 
 onMounted(() => {
   loadDevices().then(() => {
@@ -201,11 +202,20 @@ onMounted(() => {
     loadDevices().then(() => loadChartData())
   }
   window.addEventListener('global-refresh', refreshHandler)
+
+  // 每 30 秒自动刷新设备状态（不重新加载图表）
+  autoRefreshTimer = setInterval(() => {
+    loadDevices()
+  }, 30000)
 })
 
 onUnmounted(() => {
   if (refreshHandler) {
     window.removeEventListener('global-refresh', refreshHandler)
+  }
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer)
+    autoRefreshTimer = null
   }
 })
 </script>

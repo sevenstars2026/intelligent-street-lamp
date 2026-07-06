@@ -275,7 +275,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, reactive } from 'vue'
+import { ref, computed, onMounted, onUnmounted, reactive } from 'vue'
 import { inject } from 'vue'
 import { useDevices } from '@/composables/useDevices.js'
 import { useToast } from '@/composables/useToast.js'
@@ -446,10 +446,23 @@ function formatTime(t) {
 }
 
 // ---- 生命周期 ----
+let autoRefreshTimer = null
+
 onMounted(async () => {
   await loadDevices()
   if (devices.value.length > 0) {
     selectDevice(devices.value[0])
+  }
+  // 每 30 秒自动刷新设备状态
+  autoRefreshTimer = setInterval(() => {
+    loadDevices()
+  }, 30000)
+})
+
+onUnmounted(() => {
+  if (autoRefreshTimer) {
+    clearInterval(autoRefreshTimer)
+    autoRefreshTimer = null
   }
 })
 </script>
