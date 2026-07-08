@@ -1,20 +1,21 @@
-import { lampPositions, photoSpots, scenicEvents, scenicRoutes } from '../data/scenic-data';
+import { DatabaseService } from './database.service';
+import { MockDatabase } from '../mock/mock-database';
 
 export class ScenicService {
-  static getRoutes() {
-    return scenicRoutes;
+  static async getRoutes() {
+    try { return await DatabaseService.getScenicRoutes(); }
+    catch { return MockDatabase.getScenicRoutes(); }
   }
-
-  static getSpots() {
-    return photoSpots;
+  static async getSpots() {
+    try { return await DatabaseService.getScenicSpots(); }
+    catch { return MockDatabase.getScenicSpots(); }
   }
-
-  static getEvents() {
-    return scenicEvents;
+  static async getEvents() {
+    try { return await DatabaseService.getScenicEvents(); }
+    catch { return MockDatabase.getScenicEvents(); }
   }
-
-  static getLamps() {
-    return lampPositions;
+  static async getLamps() {
+    try { return await DatabaseService.getScenicLamps(); }
+    catch { return MockDatabase.getScenicLamps(); }
   }
 }
-

@@ -1,49 +1,22 @@
 import { DatabaseService } from './database.service';
-
-export interface CreateFaultReportInput {
-  reporterName: string;
-  reporterPhone: string;
-  lampId: string;
-  description: string;
-  photoUrls: string[];
-}
+import { MockDatabase } from '../mock/mock-database';
+import type { FaultReport } from '../types/database.types';
 
 export class ReportService {
-  static async createFaultReport(input: CreateFaultReportInput) {
-    const device = await DatabaseService.getDevice(input.lampId);
-    if (!device) {
-      throw new Error('DEVICE_NOT_FOUND');
-    }
-
-    const alarm = await DatabaseService.addAlarm({
-      deviceId: input.lampId,
-      deviceName: device.name || input.lampId,
-      alarmType: 'fault_report',
-      alarmLevel: 'medium',
-      status: 'active',
-      message: `游客 ${input.reporterName}(${input.reporterPhone}) 上报故障: ${input.description}`,
+  static async submit(data: {
+    name: string; phone: string; lampId: string;
+    description: string; photos: string[];
+  }) {
+    const report: Omit<FaultReport, 'id'> = {
+      alarmId: 0,
+      reporterName: data.name,
+      reporterPhone: data.phone,
+      lampId: data.lampId,
+      description: data.description,
+      photoUrls: data.photos.map(f => String(f)),
       createdAt: new Date(),
-      handledAt: null,
-      handlerId: null,
-      handlerName: null,
-    });
-
-    const report = await DatabaseService.addFaultReport({
-      alarmId: alarm.id,
-      reporterName: input.reporterName,
-      reporterPhone: input.reporterPhone,
-      lampId: input.lampId,
-      description: input.description,
-      photoUrls: input.photoUrls,
-      createdAt: new Date(),
-    });
-
-    return {
-      reportId: report.id,
-      alarmId: alarm.id,
-      photoUrls: report.photoUrls,
-      createdAt: report.createdAt,
     };
+    try { return await DatabaseService.addFaultReport(report); }
+    catch { return MockDatabase.addFaultReport(report); }
   }
 }
-

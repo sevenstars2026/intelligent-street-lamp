@@ -63,7 +63,44 @@ export class MockDatabase {
       updatedAt: new Date()
     });
 
-    console.log('MockDatabase initialized with sample data');
+    // 种子 8 条告警样本数据
+    this.alarms = [
+      { id: 1, deviceId: 'lamp_001', deviceName: '路灯001', alarmType: 'offline',        alarmLevel: 'high',     status: 'active',   message: '设备 路灯001(lamp_001) 已离线超过30秒，最后心跳时间 2026-07-06 08:31:26', createdAt: new Date('2026-07-06T10:31:56'), handledAt: null, handlerId: null, handlerName: null },
+      { id: 2, deviceId: 'lamp_002', deviceName: '路灯002', alarmType: 'offline',        alarmLevel: 'high',     status: 'active',   message: '设备 路灯002(lamp_002) 已离线超过30秒，最后心跳时间 2026-07-06 08:31:26', createdAt: new Date('2026-07-06T10:31:56'), handledAt: null, handlerId: null, handlerName: null },
+      { id: 3, deviceId: 'lamp_003', deviceName: '路灯003', alarmType: 'offline',        alarmLevel: 'critical', status: 'active',   message: '设备 路灯003(lamp_003) 已离线超过2小时，最后心跳时间 2026-07-06 08:31:26', createdAt: new Date('2026-07-06T08:31:26'), handledAt: null, handlerId: null, handlerName: null },
+      { id: 4, deviceId: 'lamp_001', deviceName: '路灯001', alarmType: 'control_failed', alarmLevel: 'medium',   status: 'resolved', message: '设备 路灯001(lamp_001) 控制失败：设备无响应',                       createdAt: new Date('2026-07-05T18:20:00'), handledAt: new Date('2026-07-05T19:00:00'), handlerId: 1, handlerName: '管理员' },
+      { id: 5, deviceId: 'lamp_002', deviceName: '路灯002', alarmType: 'control_failed', alarmLevel: 'medium',   status: 'active',   message: '设备 路灯002(lamp_002) 控制失败：超时未确认',                       createdAt: new Date('2026-07-06T08:45:00'), handledAt: null, handlerId: null, handlerName: null },
+      { id: 6, deviceId: 'lamp_001', deviceName: '路灯001', alarmType: 'frequent_switch',alarmLevel: 'low',      status: 'active',   message: '设备 路灯001(lamp_001) 近10分钟内开关操作达7次，触发频繁开关告警',      createdAt: new Date('2026-07-06T09:15:00'), handledAt: null, handlerId: null, handlerName: null },
+      { id: 7, deviceId: 'lamp_003', deviceName: '路灯003', alarmType: 'threshold_anomaly',alarmLevel:'medium',  status: 'resolved', message: '设备 路灯003(lamp_003) 光照传感器读数异常，连续3次超过阈值范围',        createdAt: new Date('2026-07-04T14:30:00'), handledAt: new Date('2026-07-04T16:00:00'), handlerId: 1, handlerName: '管理员' },
+      { id: 8, deviceId: 'lamp_002', deviceName: '路灯002', alarmType: 'frequent_switch',alarmLevel: 'low',      status: 'resolved', message: '设备 路灯002(lamp_002) 近10分钟内开关操作达5次，触发频繁开关告警',      createdAt: new Date('2026-07-05T22:10:00'), handledAt: new Date('2026-07-05T23:00:00'), handlerId: 1, handlerName: '管理员' },
+    ];
+    this.alarmIdCounter = 9;
+
+    // 种子景区数据
+    this.scenicRoutes = [
+      { id: 1, name: '湖畔夜光步道', duration: '45分钟', length: '1.8km', lampIds: ['lamp_001','lamp_003'], tags: ['夜景','散步'], description: '沿湖步道，夜晚路灯暖光映射湖面，是散步赏景的最佳路线' },
+      { id: 2, name: '花海漫步路线', duration: '30分钟', length: '1.2km', lampIds: ['lamp_001','lamp_002'], tags: ['赏花','拍照'], description: '穿行四季花海，路灯与花丛相映成趣' },
+      { id: 3, name: '森林探幽小径', duration: '60分钟', length: '2.5km', lampIds: ['lamp_002','lamp_003'], tags: ['徒步','森林'], description: '深入湿地森林腹地，路灯引导安全前行' },
+    ];
+    this.scenicSpots = [
+      { id: 1, name: '夕阳亭', lampId: 'lamp_001', image: '🌅', description: '傍晚路灯暖光与夕阳交织，湖面倒影如画', bestTime: '17:30-19:00', tips: '建议使用广角镜头，站在亭子东侧取景' },
+      { id: 2, name: '樱花大道', lampId: 'lamp_002', image: '🌸', description: '春季樱花盛开时，路灯下花瓣飘落，浪漫至极', bestTime: '3月-4月 15:00-17:00', tips: '逆光拍摄花瓣透光效果最佳' },
+      { id: 3, name: '湖心观景台', lampId: 'lamp_003', image: '🏞', description: '湿地全景尽收眼底，路灯点缀如星落人间', bestTime: '18:00-20:00', tips: '等待路灯亮起时刻，冷暖光对比极佳' },
+      { id: 4, name: '水杉林栈道', lampId: 'lamp_002', image: '🌲', description: '高耸水杉林间栈道，路灯穿透树冠形成光柱', bestTime: '16:00-18:00', tips: '仰拍光柱穿透树冠的丁达尔效应' },
+    ];
+    this.scenicEvents = [
+      { id: 1, name: '国庆烟花盛典', type: '🎇', typeLabel: '烟花', date: '2026-10-01', time: '19:30', location: '湖心广场', lampId: 'lamp_003', description: '年度最大型烟花表演，配合路灯灯光秀' },
+      { id: 2, name: '中秋灯会巡游', type: '🎭', typeLabel: '巡游', date: '2026-09-15', time: '18:00', location: '樱花大道', lampId: 'lamp_002', description: '传统花灯巡游，沿途路灯配合调暗营造氛围' },
+      { id: 3, name: '水幕光影秀', type: '💧', typeLabel: '水幕', date: '2026-07-20', time: '20:00', location: '湖心观景台', lampId: 'lamp_003', description: '水幕投影+路灯联动变色，视觉盛宴' },
+      { id: 4, name: '湿地音乐节', type: '🎵', typeLabel: '音乐', date: '2026-08-10', time: '18:30', location: '花海广场', lampId: 'lamp_001', description: '户外音乐演出，路灯随音乐节奏变幻色彩' },
+    ];
+    this.scenicLamps = [
+      { id: 'lamp_001', name: '夕阳亭路灯', x: 30, y: 35 },
+      { id: 'lamp_002', name: '花海路灯',   x: 58, y: 52 },
+      { id: 'lamp_003', name: '湖心路灯',   x: 45, y: 72 },
+    ];
+
+    console.log('MockDatabase initialized with sample data (8 alarms + scenic data)');
   }
 
   // ===== 设备操作 =====
@@ -310,10 +347,26 @@ export class MockDatabase {
     this.faultReports = [];
     this.lightData = [];
     this.aggregatedData = [];
+    this.scenicRoutes = [];
+    this.scenicSpots = [];
+    this.scenicEvents = [];
+    this.scenicLamps = [];
+    this.faultReports = [];
     this.logIdCounter = 1;
     this.alarmIdCounter = 1;
     this.faultReportIdCounter = 1;
     this.lightDataIdCounter = 1;
     this.aggregatedDataIdCounter = 1;
   }
+
+  // ===== 景区数据存储（供 scenic-data.ts 种子填充） =====
+  private static scenicRoutes: any[] = [];
+  private static scenicSpots: any[] = [];
+  private static scenicEvents: any[] = [];
+  private static scenicLamps: any[] = [];
+
+  static getScenicRoutes() { return this.scenicRoutes; }
+  static getScenicSpots() { return this.scenicSpots; }
+  static getScenicEvents() { return this.scenicEvents; }
+  static getScenicLamps() { return this.scenicLamps; }
 }

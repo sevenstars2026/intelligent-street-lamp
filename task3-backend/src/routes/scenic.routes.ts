@@ -9,4 +9,3 @@ router.get('/scenic/events', ScenicController.getEvents);
 router.get('/scenic/lamps', ScenicController.getLamps);
 
 export default router;
-

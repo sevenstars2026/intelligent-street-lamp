@@ -166,7 +166,7 @@ export class DatabaseService {
           id INT AUTO_INCREMENT PRIMARY KEY,
           device_id VARCHAR(64) NOT NULL,
           device_name VARCHAR(100) NOT NULL,
-          alarm_type ENUM('offline', 'control_failed', 'frequent_switch', 'fault_report') NOT NULL,
+          alarm_type ENUM('offline', 'control_failed', 'frequent_switch', 'threshold_anomaly') NOT NULL,
           alarm_level ENUM('low', 'medium', 'high', 'critical') NOT NULL,
           status ENUM('active', 'resolved') NOT NULL DEFAULT 'active',
           message TEXT,
@@ -210,6 +210,73 @@ export class DatabaseService {
           ('lamp_002', 200, 600, NOW()),
           ('lamp_003', 200, 600, NOW())
       `);
+      // 种子告警数据（仅当 alarms 表为空时插入 8 条样本）
+      await conn.query(`
+        INSERT IGNORE INTO alarms (id, device_id, device_name, alarm_type, alarm_level, status, message, created_at, handled_at, handler_id, handler_name)
+        VALUES
+          (1, 'lamp_001', '路灯001', 'offline',       'high',     'active',   '设备 路灯001(lamp_001) 已离线超过30秒，最后心跳时间 2026-07-06 08:31:26', '2026-07-06 10:31:56', NULL, NULL, NULL),
+          (2, 'lamp_002', '路灯002', 'offline',       'high',     'active',   '设备 路灯002(lamp_002) 已离线超过30秒，最后心跳时间 2026-07-06 08:31:26', '2026-07-06 10:31:56', NULL, NULL, NULL),
+          (3, 'lamp_003', '路灯003', 'offline',       'critical', 'active',   '设备 路灯003(lamp_003) 已离线超过2小时，最后心跳时间 2026-07-06 08:31:26', '2026-07-06 08:31:26', NULL, NULL, NULL),
+          (4, 'lamp_001', '路灯001', 'control_failed','medium',   'resolved', '设备 路灯001(lamp_001) 控制失败：设备无响应',                       '2026-07-05 18:20:00', '2026-07-05 19:00:00', 1, '管理员'),
+          (5, 'lamp_002', '路灯002', 'control_failed','medium',   'active',   '设备 路灯002(lamp_002) 控制失败：超时未确认',                       '2026-07-06 08:45:00', NULL, NULL, NULL),
+          (6, 'lamp_001', '路灯001', 'frequent_switch','low',     'active',   '设备 路灯001(lamp_001) 近10分钟内开关操作达7次，触发频繁开关告警',      '2026-07-06 09:15:00', NULL, NULL, NULL),
+          (7, 'lamp_003', '路灯003', 'threshold_anomaly','medium','resolved', '设备 路灯003(lamp_003) 光照传感器读数异常，连续3次超过阈值范围',        '2026-07-04 14:30:00', '2026-07-04 16:00:00', 1, '管理员'),
+          (8, 'lamp_002', '路灯002', 'frequent_switch','low',     'resolved', '设备 路灯002(lamp_002) 近10分钟内开关操作达5次，触发频繁开关告警',      '2026-07-05 22:10:00', '2026-07-05 23:00:00', 1, '管理员')
+      `);
+      // 景区表
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS scenic_routes (
+          id INT PRIMARY KEY, name VARCHAR(100), duration VARCHAR(20), length VARCHAR(20),
+          lampIds JSON, tags JSON, description TEXT
+        )
+      `);
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS scenic_spots (
+          id INT PRIMARY KEY, name VARCHAR(100), lampId VARCHAR(20), image VARCHAR(10),
+          description TEXT, bestTime VARCHAR(50), tips VARCHAR(200)
+        )
+      `);
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS scenic_events (
+          id INT PRIMARY KEY, name VARCHAR(100), type VARCHAR(10), typeLabel VARCHAR(20),
+          date VARCHAR(20), time VARCHAR(10), location VARCHAR(100), lampId VARCHAR(20), description TEXT
+        )
+      `);
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS scenic_lamps (
+          id VARCHAR(20) PRIMARY KEY, name VARCHAR(100), x INT, y INT
+        )
+      `);
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS fault_reports (
+          id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(50), phone VARCHAR(20),
+          lamp_id VARCHAR(20), description TEXT, photos JSON, created_at DATETIME
+        )
+      `);
+      // 种子景区数据
+      await conn.query(`INSERT IGNORE INTO scenic_routes (id,name,duration,length,lampIds,tags,description) VALUES
+        (1,'湖畔夜光步道','45分钟','1.8km','["lamp_001","lamp_003"]','["夜景","散步"]','沿湖步道，夜晚路灯暖光映射湖面'),
+        (2,'花海漫步路线','30分钟','1.2km','["lamp_001","lamp_002"]','["赏花","拍照"]','穿行四季花海，路灯与花丛相映成趣'),
+        (3,'森林探幽小径','60分钟','2.5km','["lamp_002","lamp_003"]','["徒步","森林"]','深入湿地森林腹地，路灯引导安全前行')
+      `);
+      await conn.query(`INSERT IGNORE INTO scenic_spots (id,name,lampId,image,description,bestTime,tips) VALUES
+        (1,'夕阳亭','lamp_001','🌅','傍晚路灯暖光与夕阳交织，湖面倒影如画','17:30-19:00','建议使用广角镜头，站在亭子东侧取景'),
+        (2,'樱花大道','lamp_002','🌸','春季樱花盛开时，路灯下花瓣飘落，浪漫至极','3月-4月 15:00-17:00','逆光拍摄花瓣透光效果最佳'),
+        (3,'湖心观景台','lamp_003','🏞','湿地全景尽收眼底，路灯点缀如星落人间','18:00-20:00','等待路灯亮起时刻，冷暖光对比极佳'),
+        (4,'水杉林栈道','lamp_002','🌲','高耸水杉林间栈道，路灯穿透树冠形成光柱','16:00-18:00','仰拍光柱穿透树冠的丁达尔效应')
+      `);
+      await conn.query(`INSERT IGNORE INTO scenic_events (id,name,type,typeLabel,date,time,location,lampId,description) VALUES
+        (1,'国庆烟花盛典','🎇','烟花','2026-10-01','19:30','湖心广场','lamp_003','年度最大型烟花表演，配合路灯灯光秀'),
+        (2,'中秋灯会巡游','🎭','巡游','2026-09-15','18:00','樱花大道','lamp_002','传统花灯巡游，沿途路灯配合调暗营造氛围'),
+        (3,'水幕光影秀','💧','水幕','2026-07-20','20:00','湖心观景台','lamp_003','水幕投影+路灯联动变色，视觉盛宴'),
+        (4,'湿地音乐节','🎵','音乐','2026-08-10','18:30','花海广场','lamp_001','户外音乐演出，路灯随音乐节奏变幻色彩')
+      `);
+      await conn.query(`INSERT IGNORE INTO scenic_lamps (id,name,x,y) VALUES
+        ('lamp_001','夕阳亭路灯',30,35),
+        ('lamp_002','花海路灯',58,52),
+        ('lamp_003','湖心路灯',45,72)
+      `);
+
       this.useMock = false;
       console.log('✓ MySQL Database connected');
     } catch (error: any) {
@@ -572,5 +639,27 @@ export class DatabaseService {
       [cutoffDate]
     );
     return result.affectedRows;
+  }
+
+  // ===== 景区数据 =====
+  static async getScenicRoutes() {
+    if (this.useMock) return MockDatabase.getScenicRoutes();
+    const [rows] = await this.pool().query<RowDataPacket[]>('SELECT * FROM scenic_routes ORDER BY id');
+    return rows;
+  }
+  static async getScenicSpots() {
+    if (this.useMock) return MockDatabase.getScenicSpots();
+    const [rows] = await this.pool().query<RowDataPacket[]>('SELECT * FROM scenic_spots ORDER BY id');
+    return rows;
+  }
+  static async getScenicEvents() {
+    if (this.useMock) return MockDatabase.getScenicEvents();
+    const [rows] = await this.pool().query<RowDataPacket[]>('SELECT * FROM scenic_events ORDER BY id');
+    return rows;
+  }
+  static async getScenicLamps() {
+    if (this.useMock) return MockDatabase.getScenicLamps();
+    const [rows] = await this.pool().query<RowDataPacket[]>('SELECT * FROM scenic_lamps ORDER BY id');
+    return rows;
   }
 }
