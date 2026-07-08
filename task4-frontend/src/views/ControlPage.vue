@@ -376,6 +376,10 @@ async function handleControl(command) {
     await loadDevices()
     if (getDeviceKey(selectedDevice.value) === deviceId) {
       syncSelectedFromDevices(deviceId)
+      const mode = await loadDeviceMode(deviceId)
+      if (mode && getDeviceKey(selectedDevice.value) === deviceId) {
+        selectedDevice.value.mode = mode
+      }
     }
   } catch (e) {
     feedbackMsg.value = e.message || '操作失败'

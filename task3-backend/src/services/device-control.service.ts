@@ -355,6 +355,15 @@ export class DeviceControlService {
     if (result.status === 'success') {
       await DatabaseService.updateDeviceState(request.deviceId, request.command);
       await AlarmService.checkFrequentSwitch(request.deviceId, device.name ?? request.deviceId);
+
+      if (device.mode === 'auto') {
+        await DatabaseService.updateDeviceMode(request.deviceId, 'manual');
+        await DatabaseService.touchThresholdUpdatedAt(request.deviceId);
+        await this.syncDeviceConfig(request.deviceId);
+        console.log(
+          `[ControlService] ${request.deviceId} mode auto → manual (triggered by manual control)`
+        );
+      }
     }
 
     return result;
