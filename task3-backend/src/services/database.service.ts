@@ -165,7 +165,7 @@ export class DatabaseService {
           id INT AUTO_INCREMENT PRIMARY KEY,
           device_id VARCHAR(64) NOT NULL,
           device_name VARCHAR(100) NOT NULL,
-          alarm_type ENUM('offline', 'control_failed', 'frequent_switch') NOT NULL,
+          alarm_type ENUM('offline', 'control_failed', 'frequent_switch', 'threshold_anomaly') NOT NULL,
           alarm_level ENUM('low', 'medium', 'high', 'critical') NOT NULL,
           status ENUM('active', 'resolved') NOT NULL DEFAULT 'active',
           message TEXT,

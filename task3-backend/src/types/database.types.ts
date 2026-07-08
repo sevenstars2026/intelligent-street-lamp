@@ -35,7 +35,7 @@ export interface Alarm {
   id: number;
   deviceId: string;
   deviceName: string;
-  alarmType: 'offline' | 'control_failed' | 'frequent_switch';
+  alarmType: 'offline' | 'control_failed' | 'frequent_switch' | 'threshold_anomaly';
   alarmLevel: 'low' | 'medium' | 'high' | 'critical';
   status: 'active' | 'resolved';
   message: string;

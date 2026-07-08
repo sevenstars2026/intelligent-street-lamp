@@ -6,7 +6,7 @@ import { ReportController } from '../controllers/report.controller';
 const upload = multer({
   storage: multer.diskStorage({
     destination: path.join(__dirname, '../../uploads'),
-    filename: (_req, file, cb) => {
+    filename: (_req: any, file: Express.Multer.File, cb: (error: Error | null, filename: string) => void) => {
       const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
       cb(null, unique + path.extname(file.originalname));
     },

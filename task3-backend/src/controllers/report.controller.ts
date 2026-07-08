@@ -5,7 +5,7 @@ export class ReportController {
   static async submitReport(req: Request, res: Response): Promise<void> {
     try {
       const { name, phone, lampId, description } = req.body;
-      const files = req.files as Express.Multer.File[] | undefined;
+      const files = (req as any).files as Express.Multer.File[] | undefined;
 
       // 校验
       if (!name || name.length < 2 || name.length > 20) {
