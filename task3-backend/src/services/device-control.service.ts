@@ -356,10 +356,12 @@ export class DeviceControlService {
       await DatabaseService.updateDeviceState(request.deviceId, request.command);
       await AlarmService.checkFrequentSwitch(request.deviceId, device.name ?? request.deviceId);
 
+
       // 【自动切为手动】手动控制成功后，若设备处于自动模式，则自动切为手动模式
       // 原因：防止自动控制逻辑在下一个采样周期撤销用户的手动操作
       if (device.mode === 'auto') {
         await DatabaseService.updateDeviceMode(request.deviceId, 'manual');
+
         await this.syncDeviceConfig(request.deviceId);
         console.log(
           `[ControlService] ${request.deviceId} mode auto → manual (triggered by manual control)`
