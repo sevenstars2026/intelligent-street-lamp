@@ -1,0 +1,357 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1920" width="1920" height="1920">
+  <defs>
+    <!-- ===== 滤镜 ===== -->
+    <!-- 柔和投影 -->
+    <filter id="shadow-soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#7a8a6a" flood-opacity="0.12" />
+    </filter>
+    <filter id="shadow-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="2" stdDeviation="16" flood-color="#f5e8d0" flood-opacity="0.35" />
+    </filter>
+    <filter id="shadow-orange" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="2" stdDeviation="20" flood-color="#f0a050" flood-opacity="0.45" />
+    </filter>
+    <filter id="shadow-grey" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="2" stdDeviation="16" flood-color="#9a9a9a" flood-opacity="0.30" />
+    </filter>
+    <!-- 噪点纹理 -->
+    <filter id="noise-light">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3" result="noise" />
+      <feColorMatrix type="saturate" values="0" in="noise" result="gray" />
+      <feComponentTransfer in="gray" result="alpha">
+        <feFuncA type="linear" slope="0.04" />
+      </feComponentTransfer>
+      <feMerge><feMergeNode in="alpha" /><feMergeNode in="SourceGraphic" /></feMerge>
+    </filter>
+
+    <!-- ===== 纹理图案 ===== -->
+    <!-- 湖水波纹 -->
+    <pattern id="water-ripple" x="0" y="0" width="80" height="40" patternUnits="userSpaceOnUse">
+      <path d="M0 20 Q20 10 40 20 Q60 30 80 20" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="1" />
+      <path d="M10 30 Q30 20 50 30 Q70 40 90 30" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="0.8" />
+      <path d="M-10 10 Q10 0 30 10 Q50 20 70 10" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="0.6" />
+    </pattern>
+    <!-- 草地颗粒 -->
+    <pattern id="grass-dots" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
+      <circle cx="5" cy="8" r="1" fill="#9ab87a" opacity="0.3" />
+      <circle cx="18" cy="3" r="0.8" fill="#8aac6a" opacity="0.2" />
+      <circle cx="25" cy="15" r="1.2" fill="#9ab87a" opacity="0.25" />
+      <circle cx="8" cy="22" r="0.7" fill="#a8c888" opacity="0.2" />
+      <circle cx="22" cy="26" r="0.9" fill="#8aac6a" opacity="0.15" />
+      <circle cx="14" cy="14" r="0.6" fill="#a8c888" opacity="0.25" />
+    </pattern>
+    <!-- 木纹 -->
+    <pattern id="wood-grain" x="0" y="0" width="12" height="4" patternUnits="userSpaceOnUse">
+      <line x1="0" y1="1" x2="12" y2="1.5" stroke="rgba(160,130,100,0.3)" stroke-width="0.6" />
+      <line x1="0" y1="2.5" x2="12" y2="2.8" stroke="rgba(160,130,100,0.2)" stroke-width="0.4" />
+      <line x1="0" y1="3.5" x2="12" y2="3.2" stroke="rgba(160,130,100,0.15)" stroke-width="0.3" />
+    </pattern>
+    <!-- 土路杂色 -->
+    <pattern id="path-texture" x="0" y="0" width="20" height="20" patternUnits="userSpaceOnUse">
+      <circle cx="4" cy="6" r="0.8" fill="rgba(180,155,130,0.2)" />
+      <circle cx="14" cy="10" r="0.6" fill="rgba(170,145,120,0.15)" />
+      <circle cx="8" cy="16" r="0.7" fill="rgba(180,155,130,0.18)" />
+      <circle cx="17" cy="4" r="0.5" fill="rgba(170,145,120,0.12)" />
+    </pattern>
+
+    <!-- ===== 渐变 ===== -->
+    <radialGradient id="lake-grad" cx="45%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#a8c8d8" stop-opacity="0.7" />
+      <stop offset="100%" stop-color="#88b0c0" stop-opacity="0.5" />
+    </radialGradient>
+    <linearGradient id="hill-nw" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c8dcb0" /><stop offset="100%" stop-color="#b4cca0" />
+    </linearGradient>
+    <linearGradient id="hill-ne" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#c4d8ac" /><stop offset="100%" stop-color="#b0c898" />
+    </linearGradient>
+    <linearGradient id="hill-se" x1="0.5" y1="0" x2="0.5" y2="1">
+      <stop offset="0%" stop-color="#d0e0bc" /><stop offset="100%" stop-color="#bccca8" />
+    </linearGradient>
+  </defs>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Layer 1: 背景草地层 id="layer-bg" -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <g id="layer-bg">
+    <!-- 基底草地 -->
+    <rect x="0" y="0" width="1920" height="1920" fill="#eef5e4" />
+    <rect x="0" y="0" width="1920" height="1920" fill="url(#grass-dots)" />
+
+    <!-- 地形等高线基底 -->
+    <!-- 左上花海丘陵 id="hill-flower-sea" -->
+    <ellipse cx="346" cy="422" rx="422" ry="384" fill="url(#hill-nw)" opacity="0.8" />
+    <path d="M77 346 Q346 154 615 346 Q577 384 538 346 Q462 422 385 384 Q308 384 231 346 Q154 346 77 346"
+          fill="none" stroke="#a4c090" stroke-width="2" opacity="0.5" />
+    <path d="M115 269 Q346 115 538 269 Q500 308 462 269 Q385 346 308 308 Q231 346 154 269"
+          fill="none" stroke="#a4c090" stroke-width="1.5" opacity="0.35" />
+
+    <!-- 右上密林区丘陵 id="hill-forest" -->
+    <ellipse cx="1574" cy="538" rx="346" ry="422" fill="url(#hill-ne)" opacity="0.7" />
+    <path d="M1306 461 Q1574 230 1804 461" fill="none" stroke="#9cb888" stroke-width="2" opacity="0.5" />
+    <path d="M1344 384 Q1574 192 1766 384" fill="none" stroke="#9cb888" stroke-width="1.5" opacity="0.35" />
+
+    <!-- 底部丘陵 id="hill-south" -->
+    <ellipse cx="1498" cy="1574" rx="499" ry="346" fill="url(#hill-se)" opacity="0.5" />
+
+    <!-- 左下花田基底 id="flower-field-base" -->
+    <ellipse cx="308" cy="1536" rx="269" ry="154" fill="#e0e8d0" opacity="0.7" />
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Layer 2: 湖泊水体层 id="layer-water" -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <g id="layer-water">
+    <!-- 心形湖泊主体 id="lake-heart" -->
+    <!-- 上半左弧 -->
+    <path d="M538 806
+             Q653 730 768 768
+             Q826 788 864 806
+             Q922 826 960 845
+             Q1018 864 1075 902
+             Q1133 941 1152 998
+             Q1171 1056 1190 1114
+             Q1219 1190 1238 1248
+             Q1258 1306 1248 1363
+             Q1238 1421 1190 1460
+             Q1142 1498 1075 1517
+             Q1008 1536 941 1526
+             Q874 1517 826 1498
+             Q778 1478 730 1440
+             Q672 1402 634 1363
+             Q596 1325 557 1267
+             Q519 1210 499 1152
+             Q480 1094 461 1037
+             Q442 979 442 922
+             Q442 864 461 826
+             Q480 787 518 768
+             Q538 787 538 806 Z"
+          fill="url(#lake-grad)" stroke="#90b8c8" stroke-width="2" />
+    <!-- 波纹叠加 -->
+    <path d="M538 806 Q653 730 768 768 Q826 788 864 806 Q922 826 960 845 Q1018 864 1075 902 Q1133 941 1152 998 Q1171 1056 1190 1114 Q1219 1190 1238 1248 Q1258 1306 1248 1363 Q1238 1421 1190 1460 Q1142 1498 1075 1517 Q1008 1536 941 1526 Q874 1517 826 1498 Q778 1478 730 1440 Q672 1402 634 1363 Q596 1325 557 1267 Q519 1210 499 1152 Q480 1094 461 1037 Q442 979 442 922 Q442 864 461 826 Q480 787 518 768 Q538 787 538 806 Z"
+          fill="url(#water-ripple)" />
+
+    <!-- 湖岸线高光 -->
+    <path d="M557 845 Q634 768 749 787 Q807 806 864 826 Q941 845 998 883" fill="none"
+          stroke="rgba(255,255,255,0.25)" stroke-width="4" stroke-linecap="round" />
+    <path d="M1190 1133 Q1210 1200 1219 1267" fill="none"
+          stroke="rgba(255,255,255,0.2)" stroke-width="3" stroke-linecap="round" />
+
+    <!-- 湖心小岛 id="lake-island" -->
+    <ellipse cx="902" cy="1094" rx="67" ry="48" fill="#c8dca8" stroke="#9ab87a" stroke-width="1.5" />
+    <ellipse cx="902" cy="1094" rx="48" ry="34" fill="#d4e8b8" opacity="0.5" />
+    <circle cx="890" cy="1084" r="6" fill="#b0cc90" opacity="0.4" />
+    <circle cx="915" cy="1100" r="5" fill="#b0cc90" opacity="0.35" />
+    <circle cx="896" cy="1105" r="4" fill="#b0cc90" opacity="0.3" />
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Layer 3: 道路桥梁层 id="layer-roads" -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <g id="layer-roads">
+    <!-- 湖畔主步道 id="path-lakeside" -->
+    <path d="M499 634 Q576 768 672 845 Q730 883 787 902 Q845 922 883 979 Q922 1037 960 1075 Q1018 1133 1075 1152 Q1133 1171 1190 1142 Q1248 1114 1286 1066 Q1325 1018 1344 1018"
+          fill="none" stroke="#c8b898" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"
+          opacity="0.8" />
+    <path d="M499 634 Q576 768 672 845 Q730 883 787 902 Q845 922 883 979 Q922 1037 960 1075 Q1018 1133 1075 1152 Q1133 1171 1190 1142 Q1248 1114 1286 1066 Q1325 1018 1344 1018"
+          fill="url(#path-texture)" stroke="none" opacity="0.5" />
+    <!-- 湖畔步道细边 -->
+    <path d="M499 634 Q576 768 672 845 Q730 883 787 902 Q845 922 883 979 Q922 1037 960 1075 Q1018 1133 1075 1152 Q1133 1171 1190 1142 Q1248 1114 1286 1066 Q1325 1018 1344 1018"
+          fill="none" stroke="#b8a880" stroke-width="2" />
+
+    <!-- 花海步道 id="path-flower" -->
+    <path d="M269 1613 Q346 1498 422 1421 Q499 1344 576 1267 Q653 1190 710 1114 Q768 1037 806 979 Q845 922 864 845 Q883 768 883 749"
+          fill="none" stroke="#c8b898" stroke-width="16" stroke-linecap="round" opacity="0.75" />
+    <path d="M269 1613 Q346 1498 422 1421 Q499 1344 576 1267 Q653 1190 710 1114 Q768 1037 806 979 Q845 922 864 845 Q883 768 883 749"
+          fill="url(#path-texture)" stroke="none" opacity="0.45" />
+    <path d="M269 1613 Q346 1498 422 1421 Q499 1344 576 1267 Q653 1190 710 1114 Q768 1037 806 979 Q845 922 864 845 Q883 768 883 749"
+          fill="none" stroke="#b8a880" stroke-width="1.8" />
+
+    <!-- 森林步道 id="path-forest" -->
+    <path d="M883 749 Q960 749 998 691 Q1056 634 1094 557 Q1152 480 1210 461 Q1267 442 1325 461 Q1382 480 1440 499 Q1498 518 1555 499 Q1613 480 1651 422"
+          fill="none" stroke="#c4b490" stroke-width="14" stroke-linecap="round" opacity="0.7" />
+    <path d="M883 749 Q960 749 998 691 Q1056 634 1094 557 Q1152 480 1210 461 Q1267 442 1325 461 Q1382 480 1440 499 Q1498 518 1555 499 Q1613 480 1651 422"
+          fill="url(#path-texture)" stroke="none" opacity="0.4" />
+
+    <!-- 环形小路 id="path-loop" -->
+    <path d="M1286 1066 Q1325 1104 1363 1123 Q1421 1142 1459 1171 Q1498 1210 1498 1267 Q1498 1325 1459 1363 Q1421 1402 1363 1382 Q1306 1363 1267 1325 Q1229 1286 1190 1250 Q1152 1240 1133 1230"
+          fill="none" stroke="#c4b490" stroke-width="12" stroke-linecap="round" opacity="0.6" />
+
+    <!-- 木桥 id="bridge-wood" -->
+    <g id="bridge-north">
+      <rect x="557" y="826" width="58" height="10" rx="3" fill="#c8b090" stroke="#b09878" stroke-width="1" />
+      <rect x="557" y="826" width="58" height="10" rx="3" fill="url(#wood-grain)" />
+      <!-- 桥栏杆 -->
+      <line x1="563" y1="826" x2="563" y2="818" stroke="#b09878" stroke-width="2" stroke-linecap="round" />
+      <line x1="586" y1="826" x2="586" y2="818" stroke="#b09878" stroke-width="2" stroke-linecap="round" />
+      <line x1="608" y1="826" x2="608" y2="818" stroke="#b09878" stroke-width="2" stroke-linecap="round" />
+    </g>
+    <g id="bridge-south">
+      <rect x="1094" y="1123" width="48" height="8" rx="3" fill="#c8b090" stroke="#b09878" stroke-width="1" />
+      <rect x="1094" y="1123" width="48" height="8" rx="3" fill="url(#wood-grain)" />
+      <line x1="1100" y1="1123" x2="1100" y2="1116" stroke="#b09878" stroke-width="1.8" stroke-linecap="round" />
+      <line x1="1118" y1="1123" x2="1118" y2="1116" stroke="#b09878" stroke-width="1.8" stroke-linecap="round" />
+      <line x1="1136" y1="1123" x2="1136" y2="1116" stroke="#b09878" stroke-width="1.8" stroke-linecap="round" />
+    </g>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Layer 4: 建筑地标层 id="layer-landmarks" -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <g id="layer-landmarks">
+    <!-- 夕阳亭（左上）id="pavilion-sunset" -->
+    <g id="pavilion-sunset" filter="url(#shadow-soft)">
+      <!-- 底座 -->
+      <rect x="480" y="480" width="85" height="48" rx="6" fill="#f0e4d0" stroke="#d4c4b0" stroke-width="1.5" />
+      <!-- 柱子 -->
+      <rect x="488" y="450" width="8" height="30" rx="3" fill="#e8d8c0" />
+      <rect x="548" y="450" width="8" height="30" rx="3" fill="#e8d8c0" />
+      <!-- 横梁 -->
+      <rect x="478" y="446" width="88" height="10" rx="3" fill="#dcc8a8" />
+      <!-- 屋顶 -->
+      <polygon points="470,446 522,406 575,446" fill="#e0c8a0" stroke="#d0b890" stroke-width="1.2" />
+      <!-- 屋顶纹理 -->
+      <line x1="490" y1="438" x2="555" y2="438" stroke="#d0b890" stroke-width="0.8" opacity="0.5" />
+      <line x1="500" y1="430" x2="545" y2="430" stroke="#d0b890" stroke-width="0.8" opacity="0.5" />
+      <!-- 亭尖 -->
+      <circle cx="522" cy="406" r="5" fill="#d4b880" />
+    </g>
+
+    <!-- 观景台（右上）id="viewpoint" -->
+    <g id="viewpoint" filter="url(#shadow-soft)">
+      <rect x="1267" y="902" width="72" height="40" rx="5" fill="#f2e8d8" stroke="#d8c8b8" stroke-width="1.2" />
+      <rect x="1273" y="880" width="60" height="26" rx="3" fill="#e8dcc8" />
+      <rect x="1280" y="872" width="46" height="12" rx="2" fill="#e0ccb0" />
+      <polygon points="1263,872 1303,854 1343,872" fill="#dcc4a0" stroke="#d0b890" stroke-width="1" />
+    </g>
+
+    <!-- 湖心亭 id="pavilion-island" -->
+    <g id="pavilion-island" filter="url(#shadow-soft)">
+      <rect x="878" y="1080" width="48" height="28" rx="4" fill="#f5ead8" stroke="#dcc8b0" stroke-width="1" />
+      <rect x="884" y="1064" width="36" height="20" rx="2" fill="#e8d8c0" />
+      <polygon points="870,1064 902,1040 934,1064" fill="#e4cca8" stroke="#d4b898" stroke-width="1" />
+      <circle cx="902" cy="1040" r="3.5" fill="#d8bc90" />
+    </g>
+
+    <!-- 游客中心 id="visitor-center" -->
+    <g id="visitor-center" filter="url(#shadow-soft)">
+      <rect x="1402" y="1133" width="115" height="70" rx="8" fill="#f0e4d4" stroke="#d4c4b4" stroke-width="1.5" />
+      <rect x="1402" y="1133" width="115" height="70" rx="8" fill="url(#wood-grain)" opacity="0.3" />
+      <!-- 大门 -->
+      <rect x="1430" y="1160" width="30" height="43" rx="3" fill="#c8a878" stroke="#b89868" stroke-width="1" />
+      <!-- 窗户 -->
+      <rect x="1468" y="1146" width="22" height="18" rx="2" fill="#e8f0f0" stroke="#c0c8c8" stroke-width="0.8" />
+      <rect x="1474" y="1170" width="22" height="18" rx="2" fill="#e8f0f0" stroke="#c0c8c8" stroke-width="0.8" />
+      <!-- 屋顶 -->
+      <polygon points="1394,1133 1460,1094 1525,1133" fill="#dcc4a8" stroke="#d0b898" stroke-width="1.2" />
+      <text x="1460" y="1155" text-anchor="middle" font-size="20" fill="#b09070" font-weight="500" font-family="sans-serif">🏛</text>
+    </g>
+
+    <!-- 指南针 id="compass" -->
+    <g id="compass" transform="translate(1728, 134)">
+      <circle cx="0" cy="0" r="58" fill="#f8f4ec" stroke="#d0c8b8" stroke-width="2" opacity="0.8" />
+      <circle cx="0" cy="0" r="48" fill="none" stroke="#e0d8c8" stroke-width="1" opacity="0.6" />
+      <!-- 指针 -->
+      <polygon points="0,-38 -12,16 0,-6 12,16" fill="#c0a880" opacity="0.7" />
+      <polygon points="0,-38 -12,16 0,-6" fill="#b09870" opacity="0.5" />
+      <!-- 方向标注 -->
+      <text x="0" y="-52" text-anchor="middle" font-size="22" fill="#b09870" font-weight="600" font-family="sans-serif">N</text>
+      <text x="0" y="64" text-anchor="middle" font-size="14" fill="#c8b8a0" font-family="sans-serif">S</text>
+      <text x="64" y="5" text-anchor="middle" font-size="14" fill="#c8b8a0" font-family="sans-serif">E</text>
+      <text x="-64" y="5" text-anchor="middle" font-size="14" fill="#c8b8a0" font-family="sans-serif">W</text>
+    </g>
+  </g>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- Layer 5: 打卡点位层 id="layer-poi" -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <g id="layer-poi">
+    <!-- 001 花海路灯 id="poi-001" -->
+    <g id="poi-001" class="poi-marker" filter="url(#shadow-glow)">
+      <!-- 光晕 -->
+      <circle cx="576" cy="672" r="48" fill="#f5e8d0" opacity="0.25" />
+      <circle cx="576" cy="672" r="32" fill="#f5e8d0" opacity="0.35" />
+      <!-- 灯柱 -->
+      <rect x="571" y="638" width="10" height="28" rx="3" fill="#d4c0a0" />
+      <!-- 灯头 -->
+      <path d="M562 638 L576 622 L590 638 Z" fill="#e8d4b0" stroke="#d0bc98" stroke-width="1" />
+      <!-- 发光点 -->
+      <circle cx="576" cy="630" r="8" fill="#faf0d8" opacity="0.9" />
+      <circle cx="576" cy="630" r="4" fill="#fff8e8" />
+      <!-- 标签 -->
+      <rect x="546" y="680" width="60" height="26" rx="12" fill="#f8f0e0" stroke="#e0d0b8" stroke-width="1" />
+      <text x="576" y="697" text-anchor="middle" font-size="18" fill="#b89870" font-weight="600" font-family="sans-serif">001</text>
+    </g>
+
+    <!-- 002 密林路灯 id="poi-002" -->
+    <g id="poi-002" class="poi-marker" filter="url(#shadow-grey)">
+      <!-- 光晕 -->
+      <circle cx="1114" cy="998" r="48" fill="#e0e0e0" opacity="0.2" />
+      <circle cx="1114" cy="998" r="32" fill="#e8e8e8" opacity="0.3" />
+      <!-- 灯柱 -->
+      <rect x="1109" y="964" width="10" height="28" rx="3" fill="#c0b8a8" />
+      <!-- 灯头 -->
+      <path d="M1100 964 L1114 948 L1128 964 Z" fill="#d8d0c0" stroke="#c0b8a8" stroke-width="1" />
+      <!-- 发光点 -->
+      <circle cx="1114" cy="956" r="8" fill="#e8e8e0" opacity="0.85" />
+      <circle cx="1114" cy="956" r="4" fill="#f0f0e8" />
+      <!-- 标签 -->
+      <rect x="1084" y="1006" width="60" height="26" rx="12" fill="#f4f2ee" stroke="#d8d0c8" stroke-width="1" />
+      <text x="1114" y="1023" text-anchor="middle" font-size="18" fill="#a09890" font-weight="600" font-family="sans-serif">002</text>
+    </g>
+
+    <!-- 003 湖心打卡 id="poi-003" -->
+    <g id="poi-003" class="poi-marker" filter="url(#shadow-orange)">
+      <!-- 光晕（三层） -->
+      <circle cx="864" cy="1382" r="60" fill="#f0a050" opacity="0.12" />
+      <circle cx="864" cy="1382" r="42" fill="#f0a050" opacity="0.2" />
+      <circle cx="864" cy="1382" r="28" fill="#f0a050" opacity="0.3" />
+      <!-- 灯柱 -->
+      <rect x="859" y="1348" width="10" height="28" rx="3" fill="#c89868" />
+      <!-- 灯头 -->
+      <path d="M850 1348 L864 1332 L878 1348 Z" fill="#e0b080" stroke="#c89058" stroke-width="1" />
+      <!-- 发光点 -->
+      <circle cx="864" cy="1340" r="10" fill="#f5c080" opacity="0.9" />
+      <circle cx="864" cy="1340" r="5" fill="#fae0c0" />
+      <!-- 标签 -->
+      <rect x="834" y="1390" width="60" height="26" rx="12" fill="#fcf0e0" stroke="#e0c090" stroke-width="1.2" />
+      <text x="864" y="1407" text-anchor="middle" font-size="18" fill="#c88040" font-weight="600" font-family="sans-serif">003</text>
+      <!-- 小星标 -->
+      <text x="898" y="1370" text-anchor="middle" font-size="24" opacity="0.7">⭐</text>
+    </g>
+
+    <!-- 拍照点图标 -->
+    <!-- 001 附近拍照点 id="spot-001" -->
+    <g id="spot-001" class="spot-marker" filter="url(#shadow-soft)">
+      <circle cx="499" cy="595" r="20" fill="#fff" stroke="#b8d8a0" stroke-width="1.5" opacity="0.85" />
+      <text x="499" y="601" text-anchor="middle" font-size="22">📷</text>
+    </g>
+    <!-- 002 附近拍照点 id="spot-002" -->
+    <g id="spot-002" class="spot-marker" filter="url(#shadow-soft)">
+      <circle cx="1190" cy="864" r="20" fill="#fff" stroke="#b8d8a0" stroke-width="1.5" opacity="0.85" />
+      <text x="1190" y="870" text-anchor="middle" font-size="22">📷</text>
+    </g>
+    <!-- 003 附近拍照点 id="spot-003" -->
+    <g id="spot-003" class="spot-marker" filter="url(#shadow-soft)">
+      <circle cx="787" cy="1267" r="20" fill="#fff" stroke="#b8d8a0" stroke-width="1.5" opacity="0.85" />
+      <text x="787" y="1273" text-anchor="middle" font-size="22">📷</text>
+    </g>
+
+    <!-- 活动星标 -->
+    <g id="event-001" class="event-marker">
+      <text x="634" y="653" text-anchor="middle" font-size="26" opacity="0.6">⭐</text>
+    </g>
+    <g id="event-002" class="event-marker">
+      <text x="1114" y="941" text-anchor="middle" font-size="26" opacity="0.6">⭐</text>
+    </g>
+  </g>
+
+  <!-- ===== 地图文字标注 ===== -->
+  <g id="layer-labels" opacity="0.55">
+    <text x="346" y="365" text-anchor="middle" font-size="28" fill="#7a9a60" font-weight="500" font-family="sans-serif" letter-spacing="8">🌸 花 海</text>
+    <text x="1574" y="422" text-anchor="middle" font-size="28" fill="#6a8a50" font-weight="500" font-family="sans-serif" letter-spacing="8">🌲 密 林 区</text>
+    <text x="269" y="1480" text-anchor="middle" font-size="22" fill="#aa8890" font-weight="500" font-family="sans-serif">🌷 花 田</text>
+    <text x="864" y="998" text-anchor="middle" font-size="32" fill="#7aa8b8" font-weight="400" font-family="sans-serif" opacity="0.6">湖 心</text>
+    <text x="1460" y="1215" text-anchor="middle" font-size="18" fill="#b09878" font-family="sans-serif">游客中心</text>
+  </g>
+</svg>
