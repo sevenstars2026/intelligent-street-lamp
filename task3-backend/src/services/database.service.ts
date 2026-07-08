@@ -11,6 +11,7 @@ import type {
   ThresholdConfig,
   ControlLog,
   Alarm,
+  FaultReport,
   LightDataRecord,
   AggregatedDataRecord,
 } from '../types/database.types';
@@ -175,6 +176,24 @@ export class DatabaseService {
           handler_name VARCHAR(100) NULL,
           INDEX idx_alarms_status_created (status, created_at),
           INDEX idx_alarms_device_type_status (device_id, alarm_type, status)
+        )
+      `);
+      await conn.query(`
+        ALTER TABLE alarms
+        MODIFY alarm_type ENUM('offline', 'control_failed', 'frequent_switch', 'fault_report') NOT NULL
+      `);
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS fault_reports (
+          id INT AUTO_INCREMENT PRIMARY KEY,
+          alarm_id INT NOT NULL,
+          reporter_name VARCHAR(100) NOT NULL,
+          reporter_phone VARCHAR(30) NOT NULL,
+          lamp_id VARCHAR(64) NOT NULL,
+          description TEXT NOT NULL,
+          photo_urls JSON NULL,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_fault_reports_alarm_id (alarm_id),
+          INDEX idx_fault_reports_lamp_created (lamp_id, created_at)
         )
       `);
       await conn.query(`
@@ -465,6 +484,24 @@ export class DatabaseService {
       ]
     );
     return { ...alarm, id: result.insertId };
+  }
+
+  static async addFaultReport(report: Omit<FaultReport, 'id'>): Promise<FaultReport> {
+    if (this.useMock) return MockDatabase.addFaultReport(report);
+    const [result] = await this.pool().query<ResultSetHeader>(
+      `INSERT INTO fault_reports (alarm_id, reporter_name, reporter_phone, lamp_id, description, photo_urls, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        report.alarmId,
+        report.reporterName,
+        report.reporterPhone,
+        report.lampId,
+        report.description,
+        JSON.stringify(report.photoUrls),
+        report.createdAt,
+      ]
+    );
+    return { ...report, id: result.insertId };
   }
 
   static async getAlarms(filters?: {

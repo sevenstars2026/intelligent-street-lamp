@@ -4,17 +4,19 @@
  * 类型定义已迁移到 src/types/database.types.ts，此处保留兼容 re-export
  */
 
-import type { Device, ThresholdConfig, ControlLog, Alarm } from '../types/database.types';
+import type { Device, ThresholdConfig, ControlLog, Alarm, FaultReport } from '../types/database.types';
 
-export type { Device, ThresholdConfig, ControlLog, Alarm } from '../types/database.types';
+export type { Device, ThresholdConfig, ControlLog, Alarm, FaultReport } from '../types/database.types';
 
 export class MockDatabase {
   private static devices: Map<string, Device> = new Map();
   private static thresholds: Map<string, ThresholdConfig> = new Map();
   private static controlLogs: ControlLog[] = [];
   private static alarms: Alarm[] = [];
+  private static faultReports: FaultReport[] = [];
   private static logIdCounter = 1;
   private static alarmIdCounter = 1;
+  private static faultReportIdCounter = 1;
 
   // 初始化Mock数据
   static init() {
@@ -255,6 +257,16 @@ export class MockDatabase {
     return true;
   }
 
+  static addFaultReport(report: Omit<FaultReport, 'id'>): FaultReport {
+    const newReport: FaultReport = {
+      ...report,
+      id: this.faultReportIdCounter++
+    };
+
+    this.faultReports.push(newReport);
+    return newReport;
+  }
+
   // ===== 光照数据管理 =====
 
   private static lightData: Array<{
@@ -332,6 +344,7 @@ export class MockDatabase {
     this.thresholds.clear();
     this.controlLogs = [];
     this.alarms = [];
+    this.faultReports = [];
     this.lightData = [];
     this.aggregatedData = [];
     this.scenicRoutes = [];
@@ -341,6 +354,7 @@ export class MockDatabase {
     this.faultReports = [];
     this.logIdCounter = 1;
     this.alarmIdCounter = 1;
+    this.faultReportIdCounter = 1;
     this.lightDataIdCounter = 1;
     this.aggregatedDataIdCounter = 1;
     this.reportIdCounter = 1;

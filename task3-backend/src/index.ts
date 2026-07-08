@@ -5,6 +5,7 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import deviceControlRoutes from './routes/device-control.routes';
 import alarmRoutes from './routes/alarm.routes';
 import scenicRoutes from './routes/scenic.routes';
@@ -28,6 +29,9 @@ app.use(cors());
 // JSON解析
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// 游客故障上报图片静态访问
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // 请求日志
 app.use((req: Request, res: Response, next: NextFunction) => {

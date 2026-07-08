@@ -147,6 +147,7 @@ function typeLabel(type) {
     offline: '设备离线',
     control_failed: '控制失败',
     frequent_switch: '频繁开关',
+    fault_report: '游客上报',
     threshold_anomaly: '阈值异常',
   }
   return map[type] || type || '—'

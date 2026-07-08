@@ -45,6 +45,17 @@ export interface Alarm {
   handlerName: string | null;
 }
 
+export interface FaultReport {
+  id: number;
+  alarmId: number;
+  reporterName: string;
+  reporterPhone: string;
+  lampId: string;
+  description: string;
+  photoUrls: string[];
+  createdAt: Date;
+}
+
 export interface LightDataRecord {
   id: number;
   deviceId: string;
