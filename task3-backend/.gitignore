@@ -9,3 +9,7 @@ dist/
 *.swo
 coverage/
 .nyc_output/
+uploads/*
+!uploads/.gitkeep
+!uploads/reports/
+!uploads/reports/.gitkeep

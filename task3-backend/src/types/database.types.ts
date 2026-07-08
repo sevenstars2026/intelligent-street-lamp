@@ -35,7 +35,7 @@ export interface Alarm {
   id: number;
   deviceId: string;
   deviceName: string;
-  alarmType: 'offline' | 'control_failed' | 'frequent_switch';
+  alarmType: 'offline' | 'control_failed' | 'frequent_switch' | 'fault_report';
   alarmLevel: 'low' | 'medium' | 'high' | 'critical';
   status: 'active' | 'resolved';
   message: string;
@@ -43,6 +43,17 @@ export interface Alarm {
   handledAt: Date | null;
   handlerId: number | null;
   handlerName: string | null;
+}
+
+export interface FaultReport {
+  id: number;
+  alarmId: number;
+  reporterName: string;
+  reporterPhone: string;
+  lampId: string;
+  description: string;
+  photoUrls: string[];
+  createdAt: Date;
 }
 
 export interface LightDataRecord {
