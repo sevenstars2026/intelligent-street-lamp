@@ -357,25 +357,16 @@ export class MockDatabase {
     this.faultReportIdCounter = 1;
     this.lightDataIdCounter = 1;
     this.aggregatedDataIdCounter = 1;
-    this.reportIdCounter = 1;
   }
 
-  // ===== 景区数据 =====
+  // ===== 景区数据存储（供 scenic-data.ts 种子填充） =====
   private static scenicRoutes: any[] = [];
   private static scenicSpots: any[] = [];
   private static scenicEvents: any[] = [];
   private static scenicLamps: any[] = [];
-  private static faultReports: any[] = [];
-  private static reportIdCounter = 1;
 
   static getScenicRoutes() { return this.scenicRoutes; }
   static getScenicSpots() { return this.scenicSpots; }
   static getScenicEvents() { return this.scenicEvents; }
   static getScenicLamps() { return this.scenicLamps; }
-
-  static addFaultReport(data: any) {
-    const report = { id: this.reportIdCounter++, ...data, createdAt: new Date() };
-    this.faultReports.push(report);
-    return report;
-  }
 }

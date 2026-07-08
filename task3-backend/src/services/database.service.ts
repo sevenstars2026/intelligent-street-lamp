@@ -662,14 +662,4 @@ export class DatabaseService {
     const [rows] = await this.pool().query<RowDataPacket[]>('SELECT * FROM scenic_lamps ORDER BY id');
     return rows;
   }
-
-  // ===== 故障上报 =====
-  static async addFaultReport(data: { name: string; phone: string; lampId: string; description: string; photos: string[] }) {
-    if (this.useMock) return MockDatabase.addFaultReport(data);
-    const [result] = await this.pool().query<ResultSetHeader>(
-      'INSERT INTO fault_reports (name, phone, lamp_id, description, photos, created_at) VALUES (?, ?, ?, ?, ?, NOW())',
-      [data.name, data.phone, data.lampId, data.description, JSON.stringify(data.photos)]
-    );
-    return { id: result.insertId, ...data, createdAt: new Date() };
-  }
 }
