@@ -28,7 +28,13 @@ const routes = [
     path: '/alarms',
     name: 'Alarms',
     component: () => import('@/views/AlarmPage.vue'),
-    meta: { title: '告警日志', roles: ['admin'] },
+    meta: { title: '告警日志', roles: ['admin', 'municipal'] },
+  },
+  {
+    path: '/fault-reports',
+    name: 'FaultReports',
+    component: () => import('@/views/FaultReportsPage.vue'),
+    meta: { title: '故障上报', roles: ['admin', 'municipal'] },
   },
   {
     path: '/',

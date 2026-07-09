@@ -266,6 +266,30 @@ export class MockDatabase {
     return newReport;
   }
 
+  static getFaultReports(filters?: { status?: string; lampId?: string }): FaultReport[] {
+    let list = [...this.faultReports];
+    if (filters?.status) {
+      list = list.filter(r => r.status === filters.status);
+    }
+    if (filters?.lampId) {
+      list = list.filter(r => r.lampId === filters.lampId);
+    }
+    return list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  static getFaultReport(id: number): FaultReport | null {
+    return this.faultReports.find(r => r.id === id) || null;
+  }
+
+  static resolveFaultReport(id: number, note: string | null): boolean {
+    const report = this.faultReports.find(r => r.id === id);
+    if (!report) return false;
+    report.status = 'resolved';
+    report.resolvedAt = new Date();
+    report.resolveNote = note;
+    return true;
+  }
+
   // ===== 光照数据管理 =====
 
   private static lightData: Array<{

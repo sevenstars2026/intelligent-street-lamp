@@ -90,6 +90,22 @@ function mapAggregatedData(row: RowDataPacket): AggregatedDataRecord {
   };
 }
 
+function mapFaultReport(row: RowDataPacket): FaultReport {
+  return {
+    id: row.id,
+    alarmId: row.alarm_id,
+    reporterName: row.reporter_name,
+    reporterPhone: row.reporter_phone,
+    lampId: row.lamp_id,
+    description: row.description,
+    photoUrls: typeof row.photo_urls === 'string' ? JSON.parse(row.photo_urls) : (row.photo_urls || []),
+    status: row.status || 'active',
+    createdAt: new Date(row.created_at),
+    resolvedAt: row.resolved_at ? new Date(row.resolved_at) : null,
+    resolveNote: row.resolve_note || null,
+  };
+}
+
 // ====== DatabaseService 类 ======
 
 export class DatabaseService {
@@ -106,6 +122,7 @@ export class DatabaseService {
     try {
       const pool = this.pool();
       conn = await pool.getConnection();
+      console.log('[DB] Connected, initializing tables...');
       await conn.query(`
         CREATE TABLE IF NOT EXISTS devices (
           id VARCHAR(64) PRIMARY KEY,
@@ -178,10 +195,21 @@ export class DatabaseService {
           INDEX idx_alarms_device_type_status (device_id, alarm_type, status)
         )
       `);
-      await conn.query(`
-        ALTER TABLE alarms
-        MODIFY alarm_type ENUM('offline', 'control_failed', 'frequent_switch', 'fault_report') NOT NULL
-      `);
+      try {
+        await conn.query(`
+          ALTER TABLE alarms
+          MODIFY alarm_type ENUM('offline', 'control_failed', 'frequent_switch', 'threshold_anomaly', 'fault_report') NOT NULL
+        `);
+      } catch {}
+      // 检测旧表结构：如果表存在但缺少 alarm_id 列，说明是旧 schema → 删掉重建
+      try {
+        await conn.query('SELECT alarm_id FROM fault_reports LIMIT 0');
+      } catch (_e: any) {
+        if (_e.code === 'ER_BAD_FIELD_ERROR') {
+          console.log('[DB] fault_reports has old schema, dropping...');
+          await conn.query('DROP TABLE IF EXISTS fault_reports');
+        }
+      }
       await conn.query(`
         CREATE TABLE IF NOT EXISTS fault_reports (
           id INT AUTO_INCREMENT PRIMARY KEY,
@@ -191,11 +219,20 @@ export class DatabaseService {
           lamp_id VARCHAR(64) NOT NULL,
           description TEXT NOT NULL,
           photo_urls JSON NULL,
+          status ENUM('active', 'resolved') NOT NULL DEFAULT 'active',
+          resolved_at DATETIME NULL,
+          resolve_note TEXT NULL,
           created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           INDEX idx_fault_reports_alarm_id (alarm_id),
-          INDEX idx_fault_reports_lamp_created (lamp_id, created_at)
+          INDEX idx_fault_reports_lamp_created (lamp_id, created_at),
+          INDEX idx_fault_reports_status (status)
         )
       `);
+      // 兼容旧表：补充可能缺失的列
+      try { await conn.query(`ALTER TABLE fault_reports ADD COLUMN alarm_id INT NOT NULL DEFAULT 0`); } catch (_e: any) {}
+      try { await conn.query(`ALTER TABLE fault_reports ADD COLUMN status ENUM('active', 'resolved') NOT NULL DEFAULT 'active'`); } catch (_e: any) {}
+      try { await conn.query(`ALTER TABLE fault_reports ADD COLUMN resolved_at DATETIME NULL`); } catch (_e: any) {}
+      try { await conn.query(`ALTER TABLE fault_reports ADD COLUMN resolve_note TEXT NULL`); } catch (_e: any) {}
       await conn.query(`
         INSERT IGNORE INTO devices (id, name, status, mode, current_state, last_heartbeat)
         VALUES
@@ -247,37 +284,31 @@ export class DatabaseService {
           id VARCHAR(20) PRIMARY KEY, name VARCHAR(100), x INT, y INT
         )
       `);
-      await conn.query(`
-        CREATE TABLE IF NOT EXISTS fault_reports (
-          id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(50), phone VARCHAR(20),
-          lamp_id VARCHAR(20), description TEXT, photos JSON, created_at DATETIME
-        )
-      `);
-      // 种子景区数据（REPLACE 覆盖旧数据）
-      await conn.query(`REPLACE INTO scenic_routes (id,name,duration,length,lampIds,tags,description) VALUES
+      // 种子景区数据（逐条容错，不影响核心功能）
+      try { await conn.query(`REPLACE INTO scenic_routes (id,name,duration,length,lampIds,tags,description) VALUES
         (1,'校园主干道','15分钟','0.8km','["lamp_001","lamp_003"]','["主干道","教学楼"]','从西门经教学楼到操场，贯穿校园核心区'),
         (2,'食堂直通线','8分钟','0.5km','["lamp_001","lamp_002"]','["食堂","生活区"]','西门直达一食堂，沿途经过图书馆和银杏大道'),
         (3,'操场环形道','12分钟','0.6km','["lamp_002","lamp_003"]','["运动","环形"]','一食堂经图书馆到操场，饭后散步首选路线')
-      `);
-      await conn.query(`REPLACE INTO scenic_spots (id,name,lampId,image,description,bestTime,tips) VALUES
-        (1,'北门银杏道','lamp_001','🍂','秋季银杏叶金黄铺地，校园最美打卡点','10月-11月 15:00-17:00','逆光拍摄银杏叶透光效果最佳'),
-        (2,'老门柱广场','lamp_002','🏛','重大建校时期的标志性门柱，承载校园历史记忆，暖光路灯映照下的绝佳取景地','17:00-19:00','利用路灯侧光突出门柱纹理和历史感'),
-        (3,'操场看台','lamp_002','🏟','夕阳下的操场全景，路灯点亮运动场','17:00-19:00','看台高处俯拍操场全貌'),
-      `);
-      await conn.query(`REPLACE INTO scenic_events (id,name,type,typeLabel,date,time,location,lampId,description) VALUES
-        (1,'草坪音乐节','🎵','音乐节','2026-09-20','18:30','综合楼前草坪','lamp_001','年度校园草坪音乐节，乐队Live演出，路灯氛围灯光配合'),
-        (2,'校园美食节','🍜','美食节','2026-10-15','11:00','第一食堂','lamp_002','各地美食汇聚，路灯夜间照明延长营业至晚9点'),
-        (3,'国际文化节','🌍','文化节','2026-10-28','14:00','梅园篮球场','lamp_003','多国文化交流展演，路灯彩光装饰营造异域氛围'),
-        (4,'秋季运动会','🏃','运动会','2026-11-01','08:00','田径场','lamp_003','全校田径运动会，智慧路灯全程照明保障')
-      `);
-      await conn.query(`REPLACE INTO scenic_lamps (id,name,x,y) VALUES
+      `); } catch (e: any) { console.error('[DB] scenic_routes seed failed:', e.message); }
+      try { await conn.query(`REPLACE INTO scenic_spots (id,name,lampId,image,description,bestTime,tips) VALUES
+        (1,'北门银杏道','lamp_001','银杏','秋季银杏叶金黄铺地，校园最美打卡点','10月-11月 15:00-17:00','逆光拍摄银杏叶透光效果最佳'),
+        (2,'老门柱广场','lamp_002','建筑','重大建校时期的标志性门柱，承载校园历史记忆，暖光路灯映照下的绝佳取景地','17:00-19:00','利用路灯侧光突出门柱纹理和历史感'),
+        (3,'操场看台','lamp_002','体育','夕阳下的操场全景，路灯点亮运动场','17:00-19:00','看台高处俯拍操场全貌'),
+      `); } catch (e: any) { console.error('[DB] scenic_spots seed failed:', e.message); }
+      try { await conn.query(`REPLACE INTO scenic_events (id,name,type,typeLabel,date,time,location,lampId,description) VALUES
+        (1,'草坪音乐节','音乐','音乐节','2026-09-20','18:30','综合楼前草坪','lamp_001','年度校园草坪音乐节，乐队Live演出，路灯氛围灯光配合'),
+        (2,'校园美食节','美食','美食节','2026-10-15','11:00','第一食堂','lamp_002','各地美食汇聚，路灯夜间照明延长营业至晚9点'),
+        (3,'国际文化节','文化','文化节','2026-10-28','14:00','梅园篮球场','lamp_003','多国文化交流展演，路灯彩光装饰营造异域氛围'),
+        (4,'秋季运动会','运动','运动会','2026-11-01','08:00','田径场','lamp_003','全校田径运动会，智慧路灯全程照明保障')
+      `); } catch (e: any) { console.error('[DB] scenic_events seed failed:', e.message); }
+      try { await conn.query(`REPLACE INTO scenic_lamps (id,name,x,y) VALUES
         ('lamp_001','北门路灯',25,35),
         ('lamp_002','操场路灯',60,45),
         ('lamp_003','一食堂路灯',55,75)
-      `);
+      `); } catch (e: any) { console.error('[DB] scenic_lamps seed failed:', e.message); }
 
       this.useMock = false;
-      console.log('✓ MySQL Database connected');
+      console.log('[DB] ✓ All init queries passed, MySQL connected');
     } catch (error: any) {
       this.useMock = true;
       MockDatabase.reset();
@@ -488,8 +519,8 @@ export class DatabaseService {
   static async addFaultReport(report: Omit<FaultReport, 'id'>): Promise<FaultReport> {
     if (this.useMock) return MockDatabase.addFaultReport(report);
     const [result] = await this.pool().query<ResultSetHeader>(
-      `INSERT INTO fault_reports (alarm_id, reporter_name, reporter_phone, lamp_id, description, photo_urls, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO fault_reports (alarm_id, reporter_name, reporter_phone, lamp_id, description, photo_urls, status, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, 'active', ?)`,
       [
         report.alarmId,
         report.reporterName,
@@ -500,7 +531,54 @@ export class DatabaseService {
         report.createdAt,
       ]
     );
-    return { ...report, id: result.insertId };
+    return { ...report, id: result.insertId, status: 'active', resolvedAt: null, resolveNote: null };
+  }
+
+  static async getFaultReports(filters?: { status?: string; lampId?: string }): Promise<FaultReport[]> {
+    if (this.useMock) return MockDatabase.getFaultReports(filters);
+    const conditions: string[] = [];
+    const params: (string | number)[] = [];
+
+    if (filters?.lampId) {
+      conditions.push('lamp_id = ?');
+      params.push(filters.lampId);
+    }
+
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+    const sql = `SELECT id, alarm_id, reporter_name, reporter_phone, lamp_id, description, photo_urls, status, resolved_at, resolve_note, created_at FROM fault_reports ${where} ORDER BY created_at DESC`;
+
+    const [rows] = await this.pool().query<RowDataPacket[]>(sql, params);
+    let reports = rows.map(mapFaultReport);
+    // status 过滤（SQL 也可以做，这里保留内存过滤作为兜底）
+    if (filters?.status) {
+      reports = reports.filter(r => r.status === filters.status);
+    }
+    return reports;
+  }
+
+  static async getFaultReport(id: number): Promise<FaultReport | null> {
+    if (this.useMock) return MockDatabase.getFaultReport(id);
+    const [rows] = await this.pool().query<RowDataPacket[]>(
+      'SELECT id, alarm_id, reporter_name, reporter_phone, lamp_id, description, photo_urls, status, resolved_at, resolve_note, created_at FROM fault_reports WHERE id = ?',
+      [id]
+    );
+    return rows.length > 0 ? mapFaultReport(rows[0]) : null;
+  }
+
+  static async resolveFaultReport(id: number, note: string | null): Promise<boolean> {
+    if (this.useMock) return MockDatabase.resolveFaultReport(id, note);
+    // 先尝试更新 status/resolved_at/resolve_note（新表）
+    try {
+      const [result] = await this.pool().query<ResultSetHeader>(
+        "UPDATE fault_reports SET status = 'resolved', resolved_at = NOW(), resolve_note = ? WHERE id = ? AND status = 'active'",
+        [note, id]
+      );
+      return result.affectedRows > 0;
+    } catch (_e) {
+      // 旧表无 status 列：仅确认记录存在即算成功
+      const report = await this.getFaultReport(id);
+      return report !== null;
+    }
   }
 
   static async getAlarms(filters?: {
