@@ -115,7 +115,6 @@ export function useScenic() {
     routes, spots, events, lamps, loading, error, loadScenicData,
     getSpotById, getEventById, getRouteById, getLampById,
     getSpotsByLamp, getEventsByLamp, getRoutesByLamp,
-    getNearestSpots, getNearestEvents,
     LAMP_COORDS, SPOT_COORDS, EVENT_COORDS,
   }
 }

@@ -1,10 +1,10 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 
 export function useLampReminder() {
-  const minutesLeft = ref(60)
+  const minutesLeft = ref(0)
   const warning = computed(() => minutesLeft.value <= 30)
   const critical = computed(() => minutesLeft.value <= 10)
-  const show = computed(() => minutesLeft.value > 0 && minutesLeft.value <= 120)
+  const show = computed(() => minutesLeft.value > 0)  // 熄灯前始终显示
   let timer = null
 
   function calc() {
