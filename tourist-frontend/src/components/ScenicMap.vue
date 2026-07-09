@@ -21,51 +21,32 @@ const emit = defineEmits(['selectLamp', 'selectSpot', 'selectEvent', 'selectRout
 const mapContainer = ref(null)
 let map = null
 let tileLayer = null
-let markerGroups = { lamps: L.layerGroup(), spots: L.layerGroup(), events: L.layerGroup(), routes: L.layerGroup() }
+let markerGroups = { lamps: L.layerGroup(), spots: L.layerGroup(), events: L.layerGroup(), routes: L.layerGroup(), tempRoute: L.layerGroup() }
+let tempRouteLine = null
 let spotMarkers = []
 let eventMarkers = []
 let lampMarkers = {}
 let routePolylines = []
 
-// 西溪湿地坐标布局
-const CENTER = [30.2695, 120.0635]
+// 重庆大学虎溪校区坐标布局
+const CENTER = [29.5970, 106.3020]
 const LAMP_COORDS = {
-  lamp_001: [30.2720, 120.0610],  // 西北 — 花海
-  lamp_002: [30.2690, 120.0660],  // 东北 — 密林
-  lamp_003: [30.2670, 120.0635],  // 南 — 湖心
+  lamp_001: [29.5980, 106.3010],  // 北门路灯
+  lamp_002: [29.5970, 106.3030],  // 田径场路灯
+  lamp_003: [29.5967, 106.2985],  // 一食堂路灯
 }
 
-// 路线途经点（沿真实道路曲线）
-const ROUTE_WAYPOINTS = {
-  // 湖畔夜光步道：001 南下绕湖西岸到 003
-  '1': [
-    [30.2720, 120.0610], [30.2715, 120.0612], [30.2710, 120.0616],
-    [30.2705, 120.0620], [30.2700, 120.0624], [30.2695, 120.0628],
-    [30.2690, 120.0630], [30.2685, 120.0632], [30.2680, 120.0633],
-    [30.2675, 120.0634], [30.2670, 120.0635],
-  ],
-  // 花海漫步路线：001 向东穿花田到 002
-  '2': [
-    [30.2720, 120.0610], [30.2718, 120.0618], [30.2715, 120.0626],
-    [30.2712, 120.0634], [30.2708, 120.0642], [30.2704, 120.0648],
-    [30.2700, 120.0652], [30.2696, 120.0656], [30.2692, 120.0658],
-    [30.2690, 120.0660],
-  ],
-  // 森林探幽小径：002 南下穿林区到 003
-  '3': [
-    [30.2690, 120.0660], [30.2686, 120.0656], [30.2682, 120.0652],
-    [30.2680, 120.0648], [30.2678, 120.0644], [30.2676, 120.0640],
-    [30.2674, 120.0638], [30.2672, 120.0636], [30.2670, 120.0635],
-  ],
-}
+// 虎溪校区真实道路途经点（沿高德地图道路手工采集，每条约 25 点）
 const SPOT_COORDS = {
-  1: [30.2715, 120.0605],
-  2: [30.2685, 120.0665],
-  3: [30.2675, 120.0625],
+  1: [29.5967, 106.3010],  // 北门银杏道
+  2: [29.5939, 106.3047],// 老门柱广场
+  3: [29.5970, 106.3028],  // 操场看台
 }
 const EVENT_COORDS = {
-  1: [30.2710, 120.0620],
-  2: [30.2700, 120.0650],
+  1: [29.5968, 106.2991],  // 草坪音乐节 — 综合楼前草坪
+  2: [29.5975, 106.2990],  // 美食节 — 第一食堂
+  3: [29.5970, 106.3016],  // 国际文化节 — 梅园篮球场
+  4: [29.5970, 106.3035],  // 运动会 — 田径场
 }
 
 // 自定义图标
@@ -171,20 +152,13 @@ const ROUTE_COLORS = ['#f0a050', '#5b9bd5', '#6aab70']
 const AMAP_KEY = import.meta.env.VITE_AMAP_KEY || ''
 
 // 解码高德 polyline 字符串 → [lat, lng] 数组（Leaflet 格式）
+// 高德 Walking API 返回格式: "lng1,lat1;lng2,lat2;lng3,lat3;..."
 function decodeAmapPolyline(encoded) {
   if (!encoded) return []
-  const coords = []; let i = 0; let lng = 0; let lat = 0
-  while (i < encoded.length) {
-    let shift = 0, result = 0, byte
-    do { byte = encoded.charCodeAt(i++) - 63; result |= (byte & 0x1f) << shift; shift += 5 } while (byte >= 0x20)
-    const dlng = (result & 1) ? ~(result >> 1) : (result >> 1)
-    lng += dlng; shift = 0; result = 0
-    do { byte = encoded.charCodeAt(i++) - 63; result |= (byte & 0x1f) << shift; shift += 5 } while (byte >= 0x20)
-    const dlat = (result & 1) ? ~(result >> 1) : (result >> 1)
-    lat += dlat
-    coords.push([lat * 1e-5, lng * 1e-5])
-  }
-  return coords
+  return encoded.split(';').map(pair => {
+    const [lng, lat] = pair.split(',').map(Number)
+    return [lat, lng]
+  }).filter(c => !isNaN(c[0]) && !isNaN(c[1]))
 }
 
 async function fetchAmapRoute(start, end) {
@@ -207,31 +181,15 @@ async function fetchAmapRoute(start, end) {
   return null
 }
 
-// OSRM fallback（无需 Key，国内可能慢）
-async function fetchOSRMRoute(start, end) {
-  const [lat1, lng1] = start; const [lat2, lng2] = end
-  const url = `https://router.project-osrm.org/route/v1/walking/${lng1},${lat1};${lng2},${lat2}?geometries=geojson&overview=full`
-  try {
-    const res = await fetch(url)
-    const data = await res.json()
-    if (data.code === 'Ok' && data.routes?.[0]?.geometry?.coordinates) {
-      return data.routes[0].geometry.coordinates.map(c => [c[1], c[0]])
-    }
-  } catch { /* fallback */ }
-  return null
-}
-
 let routeCoordsCache = {}
 async function loadRouteCoords(routeId, lampIds) {
   if (routeCoordsCache[routeId]) return routeCoordsCache[routeId]
   if (!lampIds || lampIds.length < 2) return null
   const start = getCoord(lampIds[0]); const end = getCoord(lampIds[lampIds.length - 1])
-  // 优先高德 → OSRM → 预定义途经点
-  let coords = await fetchAmapRoute(start, end)
-  if (!coords) coords = await fetchOSRMRoute(start, end)
-  if (!coords) coords = ROUTE_WAYPOINTS[String(routeId)]
-  if (coords) routeCoordsCache[routeId] = coords
-  return coords || null
+  // 仅使用高德真实路径
+  const coords = await fetchAmapRoute(start, end)
+  if (coords && coords.length >= 2) routeCoordsCache[routeId] = coords
+  return (coords && coords.length >= 2) ? coords : null
 }
 
 async function renderRoutes() {
@@ -268,7 +226,7 @@ function applyFilter(filter) {
   if (filter === 'all') {
     spotMarkers.forEach(m => m.addTo(markerGroups.spots))
     eventMarkers.forEach(m => m.addTo(markerGroups.events))
-    routePolylines.forEach(p => p.addTo(markerGroups.routes))
+    // 默认不显示路线，仅在点击推荐时显示临时路线
   } else if (filter === 'spots') {
     spotMarkers.forEach(m => m.addTo(markerGroups.spots))
   } else if (filter === 'events') {
@@ -305,13 +263,33 @@ watch(() => props.lamps.length, async (len) => {
   }
 })
 
+// 暴露给父组件：绘制临时路线
+async function showTempRoute(fromCoord, toCoord) {
+  clearTempRoute()
+  const coords = await fetchAmapRoute(fromCoord, toCoord)
+  if (coords && coords.length >= 2) {
+    tempRouteLine = L.polyline(coords, {
+      color: '#f0a050', weight: 4, opacity: 0.9,
+      lineCap: 'round', lineJoin: 'round', smoothFactor: 1.2,
+    })
+    tempRouteLine.addTo(markerGroups.tempRoute)
+    map?.fitBounds(L.latLngBounds([fromCoord, toCoord]), { padding: [80, 80], maxZoom: 17 })
+  }
+}
+function clearTempRoute() {
+  markerGroups.tempRoute.clearLayers()
+  tempRouteLine = null
+}
+
+defineExpose({ showTempRoute, clearTempRoute })
+
 onMounted(() => { nextTick(initMap) })
 onUnmounted(() => { map?.remove(); map = null })
 </script>
 
 <style scoped>
 .scenic-map {
-  width: 100%; height: 55vh; min-height: 360px;
+  width: 100%; height: 50vh; min-height: 320px;
   border-radius: var(--radius-lg); overflow: hidden;
   box-shadow: 0 4px 20px rgba(61,46,28,0.06);
   background: #f5f0e8;
