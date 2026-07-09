@@ -22,15 +22,15 @@ const options = [
 
 <style scoped>
 .map-filter {
-  display: flex; gap: 8px; padding: 10px 16px; overflow-x: auto;
-  position: sticky; bottom: 64px; z-index: 50;
-  background: var(--color-bg); border-top: 1px solid var(--color-divider);
+  display: flex; justify-content: center; gap: 0; padding: 10px 16px; overflow-x: auto;
+  background: var(--color-bg);
 }
 .filter-btn {
-  flex-shrink: 0; padding: 8px 16px; border-radius: 20px;
+  flex: 1; max-width: 90px; padding: 10px 0; border-radius: 12px;
   border: 1.5px solid var(--color-divider); background: var(--color-card);
   font-size: 13px; color: var(--color-text-secondary); cursor: pointer;
-  transition: all 0.2s; font-family: var(--font-sans);
+  transition: all 0.2s; font-family: var(--font-sans); text-align: center;
+  margin: 0 5px;
 }
 .filter-btn.active {
   border-color: var(--color-primary); background: var(--color-primary-bg);

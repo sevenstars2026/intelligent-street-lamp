@@ -290,11 +290,14 @@ export class DatabaseService {
         (2,'食堂直通线','8分钟','0.5km','["lamp_001","lamp_002"]','["食堂","生活区"]','西门直达一食堂，沿途经过图书馆和银杏大道'),
         (3,'操场环形道','12分钟','0.6km','["lamp_002","lamp_003"]','["运动","环形"]','一食堂经图书馆到操场，饭后散步首选路线')
       `); } catch (e: any) { console.error('[DB] scenic_routes seed failed:', e.message); }
-      try { await conn.query(`REPLACE INTO scenic_spots (id,name,lampId,image,description,bestTime,tips) VALUES
-        (1,'北门银杏道','lamp_001','银杏','秋季银杏叶金黄铺地，校园最美打卡点','10月-11月 15:00-17:00','逆光拍摄银杏叶透光效果最佳'),
-        (2,'老门柱广场','lamp_002','建筑','重大建校时期的标志性门柱，承载校园历史记忆，暖光路灯映照下的绝佳取景地','17:00-19:00','利用路灯侧光突出门柱纹理和历史感'),
-        (3,'操场看台','lamp_002','体育','夕阳下的操场全景，路灯点亮运动场','17:00-19:00','看台高处俯拍操场全貌'),
-      `); } catch (e: any) { console.error('[DB] scenic_spots seed failed:', e.message); }
+      try {
+        await conn.query(`DELETE FROM scenic_spots WHERE id > 3`);
+        await conn.query(`REPLACE INTO scenic_spots (id,name,lampId,image,description,bestTime,tips) VALUES
+        (1,'北门银杏道','lamp_001','🍂','秋季银杏叶金黄铺地，校园最美打卡点','10月-11月 15:00-17:00','逆光拍摄银杏叶透光效果最佳'),
+        (2,'老门柱广场','lamp_002','🏛','重大建校时期的标志性门柱，承载校园历史记忆，暖光路灯映照下的绝佳取景地','17:00-19:00','利用路灯侧光突出门柱纹理和历史感'),
+        (3,'操场看台','lamp_003','🏟','夕阳下的操场全景，路灯点亮运动场','17:00-19:00','看台高处俯拍操场全貌')
+        `);
+      } catch (e: any) { console.error('[DB] scenic_spots seed failed:', e.message); }
       try { await conn.query(`REPLACE INTO scenic_events (id,name,type,typeLabel,date,time,location,lampId,description) VALUES
         (1,'草坪音乐节','音乐','音乐节','2026-09-20','18:30','综合楼前草坪','lamp_001','年度校园草坪音乐节，乐队Live演出，路灯氛围灯光配合'),
         (2,'校园美食节','美食','美食节','2026-10-15','11:00','第一食堂','lamp_002','各地美食汇聚，路灯夜间照明延长营业至晚9点'),

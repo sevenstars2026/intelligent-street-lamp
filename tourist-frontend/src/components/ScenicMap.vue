@@ -113,9 +113,10 @@ function renderLamps() {
   props.lamps.forEach(l => {
     const coord = getCoord(l.id)
     const isActive = activeLampId.value === l.id
-    const color = l.id === 'lamp_003' ? '#f0a050' : (l.id === 'lamp_002' ? '#b0b0b0' : '#e0d0b0')
-    const glow = l.id === 'lamp_003' ? 'rgba(240,160,80,0.5)' : (l.id === 'lamp_002' ? 'rgba(180,180,180,0.35)' : 'rgba(230,210,180,0.4)')
-    const marker = L.marker(coord, { icon: lampIcon(l.id, isActive ? '#f0a050' : color, isActive ? 'rgba(240,160,80,0.6)' : glow) })
+    // 统一默认蓝色，选中时橙色高亮
+    const color = isActive ? '#f0a050' : '#658ae4'
+    const glow = isActive ? 'rgba(240,160,80,0.6)' : 'rgba(101,138,228,0.35)'
+    const marker = L.marker(coord, { icon: lampIcon(l.id, color, glow) })
     marker.bindTooltip(`${l.name || l.id}`, { direction: 'top', offset: [0, -20] })
     marker.on('click', () => emit('selectLamp', l))
     marker.addTo(markerGroups.lamps)
@@ -290,9 +291,10 @@ onUnmounted(() => { map?.remove(); map = null })
 <style scoped>
 .scenic-map {
   width: 100%; height: 50vh; min-height: 320px;
-  border-radius: var(--radius-lg); overflow: hidden;
-  box-shadow: 0 4px 20px rgba(61,46,28,0.06);
+  border-radius: 14px; overflow: hidden;
+  box-shadow: 0 2px 16px rgba(61,46,28,0.08);
   background: #f5f0e8;
+  margin: 0;
 }
 /* 地图加载中的占位背景 */
 .scenic-map :deep(.leaflet-container) {
