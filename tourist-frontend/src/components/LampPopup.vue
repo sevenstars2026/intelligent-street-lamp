@@ -25,7 +25,7 @@
             <div v-if="displayEvents.length" class="popup-section">
               <div class="section-label">🎆 附近活动</div>
               <div v-for="e in displayEvents" :key="e.id" class="mini-card" @click="$emit('selectEvent', e)">
-                <span class="mini-icon">{{ e.type }}</span>
+                <span class="mini-icon" v-html="eventIcon(e.typeLabel)"></span>
                 <div class="mini-info">
                   <div class="mini-name">{{ e.name }}</div>
                   <div class="mini-desc">{{ e.date }} {{ e.time }} · {{ e.location }}</div>
@@ -59,6 +59,14 @@ const props = defineProps({
 })
 defineEmits(['close', 'selectSpot', 'selectEvent', 'selectRoute'])
 
+const EVENT_ICONS = {
+  '音乐节': `<svg viewBox="0 0 24 24" fill="none" stroke="#f0a050" stroke-width="2"><circle cx="7" cy="17" r="3"/><circle cx="17" cy="15" r="3"/><path d="M10 17V4l10-2v13"/></svg>`,
+  '美食节': `<svg viewBox="0 0 24 24" fill="none" stroke="#f0a050" stroke-width="2"><path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><circle cx="12" cy="4" r="2"/></svg>`,
+  '文化节': `<svg viewBox="0 0 24 24" fill="none" stroke="#f0a050" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="4.93" y1="4.93" x2="9.17" y2="9.17"/><line x1="14.83" y1="14.83" x2="19.07" y2="19.07"/></svg>`,
+  '运动会': `<svg viewBox="0 0 24 24" fill="none" stroke="#f0a050" stroke-width="2"><circle cx="12" cy="5" r="2"/><path d="M10 22v-5l-4-3V9"/><path d="M14 22v-5l4-3V9"/><path d="M5 9h14"/></svg>`,
+}
+function eventIcon(label) { return EVENT_ICONS[label] || '' }
+
 // 硬编码：每个路灯的推荐拍照点和活动
 const ALL_SPOTS = [
   { id: 1, name: '北门银杏道', image: '🍂', description: '秋季银杏叶金黄铺地，校园最美打卡点', bestTime: '10月-11月 15:00-17:00', tips: '逆光拍摄银杏叶透光效果最佳' },
@@ -80,12 +88,10 @@ const LAMP_RECOMMEND = {
 
 const displaySpots = computed(() => {
   const cfg = LAMP_RECOMMEND[props.lampId]
-  console.log('[LampPopup] lampId:', props.lampId, 'cfg:', cfg, 'spots:', cfg ? cfg.spotIds.map(id => ALL_SPOTS.find(s => s.id === id)).filter(Boolean) : [])
   return cfg ? cfg.spotIds.map(id => ALL_SPOTS.find(s => s.id === id)).filter(Boolean) : []
 })
 const displayEvents = computed(() => {
   const cfg = LAMP_RECOMMEND[props.lampId]
-  console.log('[LampPopup] lampId:', props.lampId, 'cfg:', cfg, 'events:', cfg ? cfg.eventIds.map(id => ALL_EVENTS.find(e => e.id === id)).filter(Boolean) : [])
   return cfg ? cfg.eventIds.map(id => ALL_EVENTS.find(e => e.id === id)).filter(Boolean) : []
 })
 </script>
@@ -119,7 +125,8 @@ const displayEvents = computed(() => {
   background: #fefaf6; cursor: pointer; transition: background 0.15s;
 }
 .mini-card:active { background: #faf0e4; }
-.mini-icon { font-size: 28px; flex-shrink: 0; }
+.mini-icon { width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.mini-icon :deep(svg) { width: 28px; height: 28px; }
 .mini-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .mini-name { font-size: 14px; font-weight: 600; color: var(--color-text); }
 .mini-desc { font-size: 12px; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

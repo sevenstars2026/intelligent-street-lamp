@@ -4,7 +4,7 @@
     <div class="spot-grid">
       <div v-for="(s, i) in spots" :key="s.id" class="card spot-card anim-fade-up"
            :style="{ animationDelay: (i * 60) + 'ms' }"
-           @click="goMapSpot(s)">
+           @click="goDetail(s)">
         <div class="spot-image">{{ s.image }}</div>
         <div class="spot-body">
           <div class="spot-name">{{ s.name }}</div>
@@ -29,9 +29,7 @@ import BottomNav from '@/components/BottomNav.vue'
 const router = useRouter()
 const { spots, loadScenicData } = useScenic()
 
-function goMapSpot(s) {
-  router.push({ path: '/', query: { lamp: s.lampId } })
-}
+function goDetail(s) { router.push(`/spots/${s.id}`) }
 
 onMounted(() => loadScenicData())
 </script>
