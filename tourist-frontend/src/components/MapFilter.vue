@@ -23,6 +23,8 @@ const options = [
 <style scoped>
 .map-filter {
   display: flex; gap: 8px; padding: 10px 16px; overflow-x: auto;
+  position: sticky; bottom: 64px; z-index: 50;
+  background: var(--color-bg); border-top: 1px solid var(--color-divider);
 }
 .filter-btn {
   flex-shrink: 0; padding: 8px 16px; border-radius: 20px;

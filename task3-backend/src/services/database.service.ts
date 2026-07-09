@@ -253,28 +253,27 @@ export class DatabaseService {
           lamp_id VARCHAR(20), description TEXT, photos JSON, created_at DATETIME
         )
       `);
-      // 种子景区数据
-      await conn.query(`INSERT IGNORE INTO scenic_routes (id,name,duration,length,lampIds,tags,description) VALUES
-        (1,'湖畔夜光步道','45分钟','1.8km','["lamp_001","lamp_003"]','["夜景","散步"]','沿湖步道，夜晚路灯暖光映射湖面'),
-        (2,'花海漫步路线','30分钟','1.2km','["lamp_001","lamp_002"]','["赏花","拍照"]','穿行四季花海，路灯与花丛相映成趣'),
-        (3,'森林探幽小径','60分钟','2.5km','["lamp_002","lamp_003"]','["徒步","森林"]','深入湿地森林腹地，路灯引导安全前行')
+      // 种子景区数据（REPLACE 覆盖旧数据）
+      await conn.query(`REPLACE INTO scenic_routes (id,name,duration,length,lampIds,tags,description) VALUES
+        (1,'校园主干道','15分钟','0.8km','["lamp_001","lamp_003"]','["主干道","教学楼"]','从西门经教学楼到操场，贯穿校园核心区'),
+        (2,'食堂直通线','8分钟','0.5km','["lamp_001","lamp_002"]','["食堂","生活区"]','西门直达一食堂，沿途经过图书馆和银杏大道'),
+        (3,'操场环形道','12分钟','0.6km','["lamp_002","lamp_003"]','["运动","环形"]','一食堂经图书馆到操场，饭后散步首选路线')
       `);
-      await conn.query(`INSERT IGNORE INTO scenic_spots (id,name,lampId,image,description,bestTime,tips) VALUES
-        (1,'夕阳亭','lamp_001','🌅','傍晚路灯暖光与夕阳交织，湖面倒影如画','17:30-19:00','建议使用广角镜头，站在亭子东侧取景'),
-        (2,'樱花大道','lamp_002','🌸','春季樱花盛开时，路灯下花瓣飘落，浪漫至极','3月-4月 15:00-17:00','逆光拍摄花瓣透光效果最佳'),
-        (3,'湖心观景台','lamp_003','🏞','湿地全景尽收眼底，路灯点缀如星落人间','18:00-20:00','等待路灯亮起时刻，冷暖光对比极佳'),
-        (4,'水杉林栈道','lamp_002','🌲','高耸水杉林间栈道，路灯穿透树冠形成光柱','16:00-18:00','仰拍光柱穿透树冠的丁达尔效应')
+      await conn.query(`REPLACE INTO scenic_spots (id,name,lampId,image,description,bestTime,tips) VALUES
+        (1,'北门银杏道','lamp_001','🍂','秋季银杏叶金黄铺地，校园最美打卡点','10月-11月 15:00-17:00','逆光拍摄银杏叶透光效果最佳'),
+        (2,'老门柱广场','lamp_002','🏛','重大建校时期的标志性门柱，承载校园历史记忆，暖光路灯映照下的绝佳取景地','17:00-19:00','利用路灯侧光突出门柱纹理和历史感'),
+        (3,'操场看台','lamp_002','🏟','夕阳下的操场全景，路灯点亮运动场','17:00-19:00','看台高处俯拍操场全貌'),
       `);
-      await conn.query(`INSERT IGNORE INTO scenic_events (id,name,type,typeLabel,date,time,location,lampId,description) VALUES
-        (1,'国庆烟花盛典','🎇','烟花','2026-10-01','19:30','湖心广场','lamp_003','年度最大型烟花表演，配合路灯灯光秀'),
-        (2,'中秋灯会巡游','🎭','巡游','2026-09-15','18:00','樱花大道','lamp_002','传统花灯巡游，沿途路灯配合调暗营造氛围'),
-        (3,'水幕光影秀','💧','水幕','2026-07-20','20:00','湖心观景台','lamp_003','水幕投影+路灯联动变色，视觉盛宴'),
-        (4,'湿地音乐节','🎵','音乐','2026-08-10','18:30','花海广场','lamp_001','户外音乐演出，路灯随音乐节奏变幻色彩')
+      await conn.query(`REPLACE INTO scenic_events (id,name,type,typeLabel,date,time,location,lampId,description) VALUES
+        (1,'草坪音乐节','🎵','音乐节','2026-09-20','18:30','综合楼前草坪','lamp_001','年度校园草坪音乐节，乐队Live演出，路灯氛围灯光配合'),
+        (2,'校园美食节','🍜','美食节','2026-10-15','11:00','第一食堂','lamp_002','各地美食汇聚，路灯夜间照明延长营业至晚9点'),
+        (3,'国际文化节','🌍','文化节','2026-10-28','14:00','梅园篮球场','lamp_003','多国文化交流展演，路灯彩光装饰营造异域氛围'),
+        (4,'秋季运动会','🏃','运动会','2026-11-01','08:00','田径场','lamp_003','全校田径运动会，智慧路灯全程照明保障')
       `);
-      await conn.query(`INSERT IGNORE INTO scenic_lamps (id,name,x,y) VALUES
-        ('lamp_001','夕阳亭路灯',30,35),
-        ('lamp_002','花海路灯',58,52),
-        ('lamp_003','湖心路灯',45,72)
+      await conn.query(`REPLACE INTO scenic_lamps (id,name,x,y) VALUES
+        ('lamp_001','北门路灯',25,35),
+        ('lamp_002','操场路灯',60,45),
+        ('lamp_003','一食堂路灯',55,75)
       `);
 
       this.useMock = false;
