@@ -32,6 +32,7 @@
         @nav-lighting="goControl"
         @nav-weather="goHistory"
         @show-alarm="openAlarmDialog"
+        @nav-fault-reports="goFaultReports"
       />
     </div>
 
@@ -222,6 +223,10 @@ function goHistory() {
 
 function openAlarmDialog() {
   showAlarmDialog.value = true
+}
+
+function goFaultReports() {
+  router.push('/fault-reports')
 }
 
 function goAlarms() {

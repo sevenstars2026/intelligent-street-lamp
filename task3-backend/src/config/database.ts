@@ -15,6 +15,7 @@ export function getPool(): mysql.Pool {
       user: process.env.DB_USER || 'root',
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'smart_lamp',
+      charset: 'utf8mb4',
       connectionLimit: 10,
       queueLimit: 0,
       connectTimeout: 10000,

@@ -93,6 +93,24 @@ export function resolveAlarm(alarmId: string | number, note?: string) {
     return api.put(`/alarms/${alarmId}/resolve`, { note })
 }
 
+// ===== 故障上报 =====
+export function getFaultReports(params?: {
+  status?: 'active' | 'resolved'
+  lampId?: string
+  page?: number
+  pageSize?: number
+}) {
+  return api.get('/reports', { params })
+}
+
+export function getFaultReport(id: number) {
+  return api.get(`/reports/${id}`)
+}
+
+export function resolveFaultReport(id: number, note?: string) {
+  return api.put(`/reports/${id}/resolve`, { note })
+}
+
 // ===== 健康检查 =====
 export function getHealth() { return api.get('/health') }
 

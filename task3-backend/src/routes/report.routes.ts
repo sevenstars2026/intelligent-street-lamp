@@ -17,5 +17,8 @@ const upload = multer({
 const router = Router();
 
 router.post('/reports', upload.array('photos', 3), ReportController.submitReport);
+router.get('/reports', ReportController.listReports);
+router.get('/reports/:id', ReportController.getReport);
+router.put('/reports/:id/resolve', ReportController.resolveReport);
 
 export default router;

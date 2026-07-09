@@ -156,6 +156,22 @@
         <text x="480" y="408" text-anchor="middle" :fill="labelColor" font-size="11" font-weight="500">历史数据</text>
       </g>
 
+      <!-- 模块4：故障上报 -->
+      <g class="module-group module-clickable" @click="$emit('nav-fault-reports')">
+        <path class="dash-line" d="M458 172 Q428 158 400 148 Q385 143 378 138" :stroke="accentColor" stroke-width="1.5"
+              fill="none" stroke-dasharray="5 4" filter="url(#glow-cyan)" />
+        <circle class="conn-dot" cx="378" cy="138" r="4" :fill="accentColor" filter="url(#glow-cyan)" />
+        <circle class="outer-ring ring-1" cx="474" cy="186" r="30" fill="none" :stroke="accentColor" stroke-width="0.6" />
+        <circle class="outer-ring ring-2" cx="474" cy="186" r="36" fill="none" :stroke="accentColor" stroke-width="0.4" />
+        <circle class="icon-bg" cx="474" cy="186" r="25" :fill="iconBgFill" :stroke="accentColor" stroke-width="1.5" filter="url(#glow-cyan)" />
+        <g class="icon-inner fault-icon" transform="translate(474, 186)" fill="none" :stroke="accentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M0-12 L10 8 L-10 8 Z" />
+          <line x1="0" y1="-4" x2="0" y2="4" />
+          <circle cx="0" cy="7" r="1.3" :fill="accentColor" />
+        </g>
+        <text x="474" y="228" text-anchor="middle" :fill="labelColor" font-size="11" font-weight="500">故障上报</text>
+      </g>
+
       <!-- 模块3：通讯报警 -->
       <g class="module-group module-clickable" @click="$emit('show-alarm')">
         <path class="dash-line" d="M142 490 Q172 475 210 468 Q250 460 280 457" :stroke="accentColor" stroke-width="1.5"
@@ -179,7 +195,7 @@
 
       <!-- 底部标题 -->
       <text x="300" y="610" text-anchor="middle" :fill="poleLight" font-size="13" font-weight="600" opacity="0.7"
-            font-family="'Space Grotesk','DM Sans',sans-serif" letter-spacing="3">智慧路灯 · 三大核心功能</text>
+            font-family="'Space Grotesk','DM Sans',sans-serif" letter-spacing="3">智慧路灯 · 核心功能</text>
       <line x1="170" y1="625" x2="430" y2="625" :stroke="poleLight" stroke-width="0.5" opacity="0.25" />
     </svg>
   </div>
@@ -188,7 +204,7 @@
 <script setup>
 import { ref, inject, computed } from 'vue'
 
-const emit = defineEmits(['nav-lighting', 'nav-weather', 'show-alarm'])
+const emit = defineEmits(['nav-lighting', 'nav-weather', 'show-alarm', 'nav-fault-reports'])
 const theme = inject('theme', ref('dark'))
 
 // 主题感知颜色

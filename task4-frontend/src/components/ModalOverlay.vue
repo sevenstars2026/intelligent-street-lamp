@@ -1,6 +1,6 @@
 <template>
   <Transition name="modal">
-    <div class="modal-overlay" v-if="show" @click.self="$emit('close')" @keydown.esc="$emit('close')">
+    <div class="modal-overlay" v-if="show" :style="{ zIndex }" @click.self="$emit('close')" @keydown.esc="$emit('close')">
       <div class="modal-card glass-card animate-scale-in">
         <div class="modal-header">
           <h3 class="modal-title">{{ title }}</h3>
@@ -27,6 +27,7 @@ import { onMounted, onUnmounted } from 'vue'
 defineProps({
   show: { type: Boolean, default: false },
   title: { type: String, default: '' },
+  zIndex: { type: Number, default: 200 },
 })
 const emit = defineEmits(['close'])
 
