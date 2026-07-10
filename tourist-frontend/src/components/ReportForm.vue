@@ -25,7 +25,7 @@
       {{ submitting ? '提交中...' : '提交上报' }}
     </button>
     <div class="emergency-contact">
-      📞 紧急情况请直接拨打：报警 110 · 急救 120 · 火警 119
+      📞 紧急情况请联系重庆大学保卫处：(023) 6567 8110
     </div>
   </div>
 </template>

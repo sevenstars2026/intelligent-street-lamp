@@ -2,7 +2,7 @@
   <div v-if="show" class="lamp-reminder" :class="{ warning, critical }">
     <span class="reminder-icon">🕐</span>
     <div class="reminder-text">
-      <div class="reminder-title">距离熄灯还有 {{ minutesLeft }} 分钟</div>
+      <div class="reminder-title">每日 {{ offTimeStr }} 熄灯 · 还剩 {{ timeText }}</div>
       <div class="reminder-sub">请合理安排游览时间</div>
     </div>
   </div>
@@ -11,6 +11,7 @@
 <script setup>
 defineProps({
   show: Boolean, minutesLeft: Number, warning: Boolean, critical: Boolean,
+  timeText: String, offTimeStr: String,
 })
 </script>
 

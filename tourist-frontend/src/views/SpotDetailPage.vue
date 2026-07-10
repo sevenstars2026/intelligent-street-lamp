@@ -5,15 +5,13 @@
       <span class="detail-type">📸 拍照点</span>
     </div>
 
-    <!-- 头图轮播 -->
+    <!-- 图片横向滑动展示 -->
     <div class="image-gallery" v-if="spot.images?.length">
-      <div class="gallery-main">
-        <img :src="spot.images[currentImage]" :alt="spot.name" class="main-image" />
+      <div class="gallery-scroll" ref="scrollRef" @scroll="onScroll">
+        <img v-for="(img, i) in spot.images" :key="i" :src="img" :alt="spot.name" class="gallery-img" />
       </div>
-      <div class="gallery-thumbs" v-if="spot.images.length > 1">
-        <img v-for="(img, i) in spot.images" :key="i" :src="img"
-          :class="{ active: i === currentImage }"
-          @click="currentImage = i" class="thumb-image" />
+      <div class="gallery-dots" v-if="spot.images.length > 1">
+        <span v-for="(img, i) in spot.images" :key="i" :class="{ active: i === currentIndex }" @click="scrollTo(i)" class="dot"></span>
       </div>
     </div>
 
@@ -60,7 +58,18 @@ import { useRoute } from 'vue-router'
 import BottomNav from '@/components/BottomNav.vue'
 
 const route = useRoute()
-const currentImage = ref(0)
+const currentIndex = ref(0)
+const scrollRef = ref(null)
+
+function onScroll() {
+  if (!scrollRef.value) return
+  const w = scrollRef.value.clientWidth
+  currentIndex.value = Math.round(scrollRef.value.scrollLeft / w)
+}
+function scrollTo(i) {
+  if (!scrollRef.value) return
+  scrollRef.value.scrollTo({ left: i * scrollRef.value.clientWidth, behavior: 'smooth' })
+}
 
 const SPOT_DATA = {
   '1': {
@@ -107,12 +116,25 @@ const spot = computed(() => SPOT_DATA[route.params.id] || { name: '未知' })
 }
 .detail-type { font-size: 14px; font-weight: 600; color: var(--color-primary-dark); }
 
-.image-gallery { margin: 0 0 12px; }
-.gallery-main { width: 100%; aspect-ratio: 16/10; overflow: hidden; background: #f0e8dc; }
-.main-image { width: 100%; height: 100%; object-fit: cover; }
-.gallery-thumbs { display: flex; gap: 8px; padding: 10px 16px; overflow-x: auto; }
-.thumb-image { width: 64px; height: 48px; border-radius: 6px; object-fit: cover; border: 2px solid transparent; cursor: pointer; transition: border-color 0.2s; }
-.thumb-image.active { border-color: var(--color-primary); }
+.image-gallery { position: relative; }
+.gallery-scroll {
+  display: flex; overflow-x: auto; scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch; scrollbar-width: none;
+}
+.gallery-scroll::-webkit-scrollbar { display: none; }
+.gallery-img {
+  width: 100%; flex-shrink: 0; aspect-ratio: 16/10;
+  object-fit: cover; scroll-snap-align: start;
+}
+.gallery-dots {
+  display: flex; justify-content: center; gap: 6px;
+  padding: 8px 0; position: absolute; bottom: 8px; left: 0; right: 0;
+}
+.dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.5); cursor: pointer; transition: background 0.2s;
+}
+.dot.active { background: #fff; width: 18px; border-radius: 3px; }
 
 .detail-body { padding: 0 16px 24px; display: flex; flex-direction: column; gap: 18px; }
 .spot-name { font-size: 22px; font-weight: 700; color: var(--color-text); }
