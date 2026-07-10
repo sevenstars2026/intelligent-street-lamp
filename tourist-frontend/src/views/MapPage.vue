@@ -18,7 +18,8 @@
 
     <!-- 熄灯提醒（最底部） -->
     <LampReminder :show="reminderShow" :minutesLeft="reminderMinutes"
-      :warning="reminderWarning" :critical="reminderCritical" />
+      :warning="reminderWarning" :critical="reminderCritical"
+      :timeText="reminderTimeText" :offTimeStr="reminderOffTime" />
 
     <!-- 路灯弹窗 -->
     <LampPopup :show="popupShow" :lampId="selectedLampId" :lampName="selectedLamp?.name || ''"
@@ -50,7 +51,7 @@ import BottomNav from '@/components/BottomNav.vue'
 const route = useRoute()
 const router = useRouter()
 const { routes, spots, events, lamps, loadScenicData, getLampById, getRoutesByLamp, LAMP_COORDS, SPOT_COORDS, EVENT_COORDS } = useScenic()
-const { show: reminderShow, minutesLeft: reminderMinutes, warning: reminderWarning, critical: reminderCritical } = useLampReminder()
+const { show: reminderShow, minutesLeft: reminderMinutes, timeText: reminderTimeText, offTimeStr: reminderOffTime, warning: reminderWarning, critical: reminderCritical } = useLampReminder()
 
 const activeFilter = ref('all')
 const selectedLampId = ref('')
