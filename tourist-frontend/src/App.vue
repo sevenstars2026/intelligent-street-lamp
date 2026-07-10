@@ -1,9 +1,11 @@
 <template>
   <div class="app-shell">
     <router-view v-slot="{ Component }">
-      <keep-alive>
-        <component :is="Component" />
-      </keep-alive>
+      <Transition name="route" mode="out-in">
+        <keep-alive>
+          <component :is="Component" />
+        </keep-alive>
+      </Transition>
     </router-view>
     <!-- Toast -->
     <div class="toast-container">
@@ -21,4 +23,7 @@ const { toasts } = useToast()
 
 <style scoped>
 .app-shell { min-height: 100vh; background: var(--color-bg); }
+.route-enter-active, .route-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.route-enter-from { opacity: 0; transform: translateX(12px); }
+.route-leave-to { opacity: 0; transform: translateX(-12px); }
 </style>

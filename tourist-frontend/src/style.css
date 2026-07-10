@@ -129,3 +129,66 @@ html, body, #app {
 .anim-fade-up:nth-child(3) { animation-delay: 0.12s; }
 .anim-fade-up:nth-child(4) { animation-delay: 0.18s; }
 .anim-fade-up:nth-child(5) { animation-delay: 0.24s; }
+.anim-fade-up:nth-child(6) { animation-delay: 0.30s; }
+.anim-fade-up:nth-child(7) { animation-delay: 0.36s; }
+.anim-fade-up:nth-child(8) { animation-delay: 0.42s; }
+
+/* ===== 卡片悬浮动效 ===== */
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card:active {
+  transform: scale(0.98);
+  box-shadow: 0 1px 6px rgba(61,46,28,0.1);
+}
+@media (hover: hover) {
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-card-hover);
+  }
+}
+
+/* ===== 按钮点击涟漪 ===== */
+.btn-primary {
+  position: relative; overflow: hidden;
+}
+.btn-primary::after {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.3) 10%, transparent 10%);
+  background-position: center; background-repeat: no-repeat;
+  opacity: 0; transition: opacity 0.4s, background-size 0.4s;
+  background-size: 0% 0%;
+}
+.btn-primary:active::after {
+  background-size: 200% 200%; opacity: 1; transition: opacity 0s, background-size 0s;
+}
+
+/* ===== 页面入场 ===== */
+@keyframes page-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page {
+  animation: page-in 0.3s ease;
+}
+
+/* ===== 列表项入场 ===== */
+@keyframes list-in {
+  from { opacity: 0; transform: translateX(-8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* ===== 搜索栏聚焦 ===== */
+.search-input {
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.search-input:focus {
+  box-shadow: 0 0 0 3px rgba(240,160,80,0.12);
+}
+
+/* ===== 标签呼吸 ===== */
+@keyframes tag-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+.tag-warm { animation: tag-pulse 3s ease-in-out infinite; }

@@ -1,17 +1,17 @@
 <template>
   <div class="page">
     <div class="page-header">📸 拍照点</div>
-    <div class="spot-grid">
+    <div class="list-container">
       <div v-for="(s, i) in spots" :key="s.id" class="card spot-card anim-fade-up"
            :style="{ animationDelay: (i * 60) + 'ms' }"
            @click="goDetail(s)">
-        <div class="spot-image">{{ s.image }}</div>
+        <div class="spot-type-icon">{{ s.image }}</div>
         <div class="spot-body">
           <div class="spot-name">{{ s.name }}</div>
-          <div class="spot-desc">{{ s.description }}</div>
           <div class="spot-meta">
             <span class="tag tag-warm">🕐 {{ s.bestTime }}</span>
           </div>
+          <div class="spot-desc">{{ s.description }}</div>
           <div class="spot-tip">💡 {{ s.tips }}</div>
         </div>
       </div>
@@ -35,12 +35,12 @@ onMounted(() => loadScenicData())
 </script>
 
 <style scoped>
-.spot-grid { padding: 0 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.spot-card { overflow: hidden; cursor: pointer; }
-.spot-image { height: 100px; display: flex; align-items: center; justify-content: center; font-size: 48px; background: #fdf5ec; }
-.spot-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
-.spot-name { font-size: 14px; font-weight: 600; }
-.spot-desc { font-size: 12px; color: var(--color-text-secondary); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.spot-meta { margin-top: 2px; }
-.spot-tip { font-size: 11px; color: var(--color-text-muted); margin-top: 2px; }
+.list-container { padding: 0 16px; display: flex; flex-direction: column; gap: 12px; }
+.spot-card { display: flex; gap: 12px; padding: 16px; cursor: pointer; }
+.spot-type-icon { font-size: 36px; flex-shrink: 0; width: 52px; height: 52px; display: flex; align-items: center; justify-content: center; background: #fdf5ec; border-radius: var(--radius-sm); }
+.spot-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.spot-name { font-size: 15px; font-weight: 600; }
+.spot-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.spot-desc { font-size: 13px; color: var(--color-text-secondary); }
+.spot-tip { font-size: 12px; color: var(--color-text-muted); }
 </style>
