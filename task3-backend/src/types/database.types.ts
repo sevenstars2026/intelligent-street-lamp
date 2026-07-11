@@ -59,6 +59,37 @@ export interface FaultReport {
   resolveNote: string | null;
 }
 
+export type AuditPass = 0 | 1 | 2;
+export type ReviewStatus = 'ai_rejected' | 'pending_review' | 'approved' | 'rejected';
+
+export interface ReportAuditLog {
+  id: number;
+  reportName: string;
+  reportPhone: string;
+  lampId: string;
+  faultContent: string;
+  photoUrls: string[];
+  auditPass: AuditPass;
+  auditReason: string;
+  maxkbResponse: string | null;
+  reviewStatus: ReviewStatus;
+  reviewerId: number | null;
+  reviewer: string | null;
+  reviewTime: Date | null;
+  reviewAction: 'approved' | 'rejected' | null;
+  reviewReason: string | null;
+  faultReportId: number | null;
+  alarmId: number | null;
+  createTime: Date;
+}
+
+export interface Pagination {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
 export interface LightDataRecord {
   id: number;
   deviceId: string;

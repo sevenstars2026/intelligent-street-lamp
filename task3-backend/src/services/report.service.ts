@@ -1,5 +1,4 @@
 import { DatabaseService } from './database.service';
-import { MockDatabase } from '../mock/mock-database';
 import type { FaultReport } from '../types/database.types';
 
 export class ReportService {
@@ -19,8 +18,7 @@ export class ReportService {
       resolvedAt: null,
       resolveNote: null,
     };
-    try { return await DatabaseService.addFaultReport(report); }
-    catch { return MockDatabase.addFaultReport(report); }
+    return DatabaseService.addFaultReport(report);
   }
 
   static async list(
