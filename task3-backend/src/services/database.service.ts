@@ -14,6 +14,7 @@ import type {
   FaultReport,
   LightDataRecord,
   AggregatedDataRecord,
+  ReportAuditLog,
 } from '../types/database.types';
 import type { RowDataPacket, ResultSetHeader } from 'mysql2';
 
@@ -103,6 +104,40 @@ function mapFaultReport(row: RowDataPacket): FaultReport {
     createdAt: new Date(row.created_at),
     resolvedAt: row.resolved_at ? new Date(row.resolved_at) : null,
     resolveNote: row.resolve_note || null,
+  };
+}
+
+function parsePhotoUrls(value: unknown): string[] {
+  if (Array.isArray(value)) return value.map(String);
+  if (typeof value !== 'string' || !value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+function mapReportAuditLog(row: RowDataPacket): ReportAuditLog {
+  return {
+    id: Number(row.id),
+    reportName: row.report_name,
+    reportPhone: row.report_phone,
+    lampId: row.lamp_id,
+    faultContent: row.fault_content,
+    photoUrls: parsePhotoUrls(row.photo_urls),
+    auditPass: row.audit_pass,
+    auditReason: row.audit_reason,
+    maxkbResponse: row.maxkb_response ?? null,
+    reviewStatus: row.review_status,
+    reviewerId: row.reviewer_id ?? null,
+    reviewer: row.reviewer ?? null,
+    reviewTime: row.review_time ? new Date(row.review_time) : null,
+    reviewAction: row.review_action ?? null,
+    reviewReason: row.review_reason ?? null,
+    faultReportId: row.fault_report_id ?? null,
+    alarmId: row.alarm_id ?? null,
+    createTime: new Date(row.create_time),
   };
 }
 
@@ -227,6 +262,31 @@ export class DatabaseService {
           INDEX idx_fault_reports_lamp_created (lamp_id, created_at),
           INDEX idx_fault_reports_status (status)
         )
+      `);
+      await conn.query(`
+        CREATE TABLE IF NOT EXISTS report_audit_log (
+          id BIGINT AUTO_INCREMENT PRIMARY KEY,
+          report_name VARCHAR(100) NOT NULL,
+          report_phone VARCHAR(30) NOT NULL,
+          lamp_id VARCHAR(64) NOT NULL,
+          fault_content TEXT NOT NULL,
+          photo_urls JSON NULL,
+          audit_pass TINYINT NOT NULL,
+          audit_reason TEXT NOT NULL,
+          maxkb_response LONGTEXT NULL,
+          review_status ENUM('ai_rejected','pending_review','approved','rejected') NOT NULL,
+          reviewer_id INT NULL,
+          reviewer VARCHAR(100) NULL,
+          review_time DATETIME NULL,
+          review_action ENUM('approved','rejected') NULL,
+          review_reason TEXT NULL,
+          fault_report_id INT NULL,
+          alarm_id INT NULL,
+          create_time DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          INDEX idx_audit_status_time (review_status, create_time),
+          INDEX idx_audit_pass (audit_pass),
+          INDEX idx_audit_duplicate (report_phone, lamp_id, create_time)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
       // 兼容旧表：补充可能缺失的列
       try { await conn.query(`ALTER TABLE fault_reports ADD COLUMN alarm_id INT NOT NULL DEFAULT 0`); } catch (_e: any) {}
@@ -582,6 +642,155 @@ export class DatabaseService {
       const report = await this.getFaultReport(id);
       return report !== null;
     }
+  }
+
+  // ===== 上报审核操作 =====
+
+  static async addReportAuditLog(log: Omit<ReportAuditLog, 'id'>): Promise<ReportAuditLog> {
+    if (this.useMock) return MockDatabase.addReportAuditLog(log);
+    const [result] = await this.pool().query<ResultSetHeader>(
+      `INSERT INTO report_audit_log
+       (report_name, report_phone, lamp_id, fault_content, photo_urls, audit_pass, audit_reason,
+        maxkb_response, review_status, reviewer_id, reviewer, review_time, review_action,
+        review_reason, fault_report_id, alarm_id, create_time)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        log.reportName, log.reportPhone, log.lampId, log.faultContent,
+        JSON.stringify(log.photoUrls), log.auditPass, log.auditReason, log.maxkbResponse,
+        log.reviewStatus, log.reviewerId, log.reviewer, log.reviewTime, log.reviewAction,
+        log.reviewReason, log.faultReportId, log.alarmId, log.createTime,
+      ]
+    );
+    return { ...log, id: result.insertId };
+  }
+
+  static async getReportAuditLogs(
+    filters: { reviewStatus?: string; auditPass?: number } = {},
+    page = 1,
+    pageSize = 20
+  ): Promise<{ logs: ReportAuditLog[]; total: number }> {
+    if (this.useMock) {
+      const all = MockDatabase.getReportAuditLogs(filters);
+      return { logs: all.slice((page - 1) * pageSize, page * pageSize), total: all.length };
+    }
+    const conditions: string[] = [];
+    const params: Array<string | number> = [];
+    if (filters.reviewStatus) {
+      conditions.push('review_status = ?');
+      params.push(filters.reviewStatus);
+    }
+    if (filters.auditPass !== undefined) {
+      conditions.push('audit_pass = ?');
+      params.push(filters.auditPass);
+    }
+    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const [countRows] = await this.pool().query<RowDataPacket[]>(
+      `SELECT COUNT(*) AS total FROM report_audit_log ${where}`,
+      params
+    );
+    const [rows] = await this.pool().query<RowDataPacket[]>(
+      `SELECT * FROM report_audit_log ${where} ORDER BY create_time DESC LIMIT ? OFFSET ?`,
+      [...params, pageSize, (page - 1) * pageSize]
+    );
+    return { logs: rows.map(mapReportAuditLog), total: Number(countRows[0].total) };
+  }
+
+  static async getReportAuditLog(id: number): Promise<ReportAuditLog | null> {
+    if (this.useMock) return MockDatabase.getReportAuditLog(id);
+    const [rows] = await this.pool().query<RowDataPacket[]>(
+      'SELECT * FROM report_audit_log WHERE id = ?', [id]
+    );
+    return rows.length ? mapReportAuditLog(rows[0]) : null;
+  }
+
+  static async findDuplicateAuditLog(
+    phone: string, lampId: string, description: string, since: Date
+  ): Promise<ReportAuditLog | null> {
+    if (this.useMock) return MockDatabase.findDuplicateAuditLog(phone, lampId, description, since);
+    const [rows] = await this.pool().query<RowDataPacket[]>(
+      `SELECT * FROM report_audit_log
+       WHERE report_phone = ? AND lamp_id = ? AND TRIM(fault_content) = ?
+         AND create_time >= ? AND review_status <> 'rejected'
+       ORDER BY create_time DESC LIMIT 1`,
+      [phone, lampId, description.trim(), since]
+    );
+    return rows.length ? mapReportAuditLog(rows[0]) : null;
+  }
+
+  static async approveReportAudit(id: number, reviewerId: number, reviewer: string) {
+    if (this.useMock) return MockDatabase.approveReportAudit(id, reviewerId, reviewer);
+    const conn = await this.pool().getConnection();
+    try {
+      await conn.beginTransaction();
+      const [auditRows] = await conn.query<RowDataPacket[]>(
+        'SELECT * FROM report_audit_log WHERE id = ? FOR UPDATE', [id]
+      );
+      if (!auditRows.length) throw new Error('AUDIT_NOT_FOUND');
+      const auditLog = mapReportAuditLog(auditRows[0]);
+      if (auditLog.reviewStatus !== 'pending_review') throw new Error('AUDIT_ALREADY_REVIEWED');
+
+      const [deviceRows] = await conn.query<RowDataPacket[]>('SELECT name FROM devices WHERE id = ?', [auditLog.lampId]);
+      const deviceName = deviceRows[0]?.name || auditLog.lampId;
+      const now = new Date();
+      const [alarmResult] = await conn.query<ResultSetHeader>(
+        `INSERT INTO alarms (device_id, device_name, alarm_type, alarm_level, status, message, created_at)
+         VALUES (?, ?, 'fault_report', 'medium', 'active', ?, ?)`,
+        [auditLog.lampId, deviceName, `游客上报故障：${auditLog.faultContent}`, now]
+      );
+      const [reportResult] = await conn.query<ResultSetHeader>(
+        `INSERT INTO fault_reports
+         (alarm_id, reporter_name, reporter_phone, lamp_id, description, photo_urls, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'active', ?)`,
+        [alarmResult.insertId, auditLog.reportName, auditLog.reportPhone, auditLog.lampId,
+          auditLog.faultContent, JSON.stringify(auditLog.photoUrls), auditLog.createTime]
+      );
+      await conn.query(
+        `UPDATE report_audit_log SET review_status='approved', reviewer_id=?, reviewer=?,
+         review_time=?, review_action='approved', fault_report_id=?, alarm_id=? WHERE id=?`,
+        [reviewerId, reviewer, now, reportResult.insertId, alarmResult.insertId, id]
+      );
+      await conn.commit();
+
+      const alarm: Alarm = {
+        id: alarmResult.insertId, deviceId: auditLog.lampId, deviceName,
+        alarmType: 'fault_report', alarmLevel: 'medium', status: 'active',
+        message: `游客上报故障：${auditLog.faultContent}`, createdAt: now,
+        handledAt: null, handlerId: null, handlerName: null,
+      };
+      const report: FaultReport = {
+        id: reportResult.insertId, alarmId: alarm.id, reporterName: auditLog.reportName,
+        reporterPhone: auditLog.reportPhone, lampId: auditLog.lampId,
+        description: auditLog.faultContent, photoUrls: auditLog.photoUrls,
+        status: 'active', createdAt: auditLog.createTime, resolvedAt: null, resolveNote: null,
+      };
+      return {
+        auditLog: { ...auditLog, reviewStatus: 'approved' as const, reviewerId, reviewer,
+          reviewTime: now, reviewAction: 'approved' as const, faultReportId: report.id, alarmId: alarm.id },
+        alarm, report,
+      };
+    } catch (error) {
+      await conn.rollback();
+      throw error;
+    } finally {
+      conn.release();
+    }
+  }
+
+  static async rejectReportAudit(
+    id: number, reviewerId: number, reviewer: string, reviewReason: string
+  ): Promise<ReportAuditLog> {
+    if (this.useMock) return MockDatabase.rejectReportAudit(id, reviewerId, reviewer, reviewReason);
+    const [result] = await this.pool().query<ResultSetHeader>(
+      `UPDATE report_audit_log SET review_status='rejected', reviewer_id=?, reviewer=?,
+       review_time=NOW(), review_action='rejected', review_reason=?
+       WHERE id=? AND review_status='pending_review'`,
+      [reviewerId, reviewer, reviewReason, id]
+    );
+    if (!result.affectedRows) {
+      const existing = await this.getReportAuditLog(id);
+      throw new Error(existing ? 'AUDIT_ALREADY_REVIEWED' : 'AUDIT_NOT_FOUND');
+    }
+    return (await this.getReportAuditLog(id))!;
   }
 
   static async getAlarms(filters?: {

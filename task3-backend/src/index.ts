@@ -10,6 +10,7 @@ import deviceControlRoutes from './routes/device-control.routes';
 import alarmRoutes from './routes/alarm.routes';
 import scenicRoutes from './routes/scenic.routes';
 import reportRoutes from './routes/report.routes';
+import reviewRoutes from './routes/review.routes';
 import { DatabaseService } from './services/database.service';
 import { AlarmService } from './services/alarm.service';
 import { closePool } from './config/database';
@@ -80,6 +81,7 @@ app.use('/api', deviceControlRoutes);
 app.use('/api', alarmRoutes);
 app.use('/api', scenicRoutes);
 app.use('/api', reportRoutes);
+app.use('/api', reviewRoutes);
 
 // 404处理
 app.use((req: Request, res: Response) => {
@@ -152,6 +154,10 @@ async function start() {
     console.log('  GET    /api/alarms');
     console.log('  GET    /api/alarms/:alarmId');
     console.log('  PUT    /api/alarms/:alarmId/resolve');
+    console.log('  GET    /api/review/list');
+    console.log('  GET    /api/review/:id');
+    console.log('  PUT    /api/review/:id/approve');
+    console.log('  PUT    /api/review/:id/reject');
     console.log('\n');
   });
 }
