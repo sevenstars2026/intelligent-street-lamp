@@ -35,7 +35,7 @@ import PhotoUploader from './PhotoUploader.vue'
 import { useReport } from '@/composables/useReport'
 import { useToast } from '@/composables/useToast'
 
-const { form, submitting, resetForm, submit } = useReport()
+const { form, submitting, error, resetForm, submit } = useReport()
 const { show } = useToast()
 
 async function handleSubmit() {
@@ -44,7 +44,7 @@ async function handleSubmit() {
     show('上报成功，工作人员将尽快处理', 'success')
     resetForm()
   } else {
-    show(form.value.error || '提交失败', 'error')
+    show(error.value || '提交失败', 'error')
   }
 }
 </script>

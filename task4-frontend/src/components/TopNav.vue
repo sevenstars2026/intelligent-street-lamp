@@ -67,6 +67,7 @@ const isRefreshing = ref(false)
 
 const userName = computed(() => props.currentUser?.nickname || '管理员')
 const userAvatar = computed(() => props.currentUser?.avatar || '管')
+
 function handleRefresh() {
   isRefreshing.value = true
   emit('refresh')

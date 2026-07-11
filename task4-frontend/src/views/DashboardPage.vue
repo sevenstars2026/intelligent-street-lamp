@@ -29,10 +29,12 @@
     <!-- ========== 中间面板：路灯示意图 ========== -->
     <div class="panel panel-center">
       <LampIllustration
+        :show-qa="userRole === 'admin'"
         @nav-lighting="goControl"
         @nav-weather="goHistory"
         @show-alarm="openAlarmDialog"
         @nav-fault-reports="goFaultReports"
+        @nav-qa="goQA"
       />
     </div>
 
@@ -174,6 +176,7 @@ import DeviceTable from '@/components/DeviceTable.vue'
 import { useDevices } from '@/composables/useDevices.js'
 
 const router = useRouter()
+const userRole = localStorage.getItem('role') || 'admin'
 
 const {
   devices, loading,
@@ -227,6 +230,10 @@ function openAlarmDialog() {
 
 function goFaultReports() {
   router.push('/fault-reports')
+}
+
+function goQA() {
+  router.push('/qa')
 }
 
 function goAlarms() {

@@ -20,6 +20,16 @@ export default defineConfig({
       '/uploads': {
         target: 'http://localhost:3000',
         changeOrigin: true
+      },
+      '/maxkb': {
+        target: 'http://192.168.20.119:8080',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/maxkb/, ''),
+        // 剥掉 X-Frame-Options，允许 MaxKB 被 iframe 嵌入
+        onProxyRes(proxyRes) {
+          delete proxyRes.headers['x-frame-options']
+          delete proxyRes.headers['content-security-policy']
+        }
       }
     }
   },
