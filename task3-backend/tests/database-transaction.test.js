@@ -2,7 +2,7 @@ function auditRow() {
   return {
     id: 9, report_name: '张三', report_phone: '13800138000', lamp_id: 'lamp_001',
     fault_content: '路灯连续多日无法正常点亮', photo_urls: JSON.stringify(['one.jpg']),
-    audit_pass: 1, audit_reason: '内容合规', maxkb_response: '{}',
+    audit_pass: 1, audit_reason: '内容合规', ai_response: '{}',
     review_status: 'pending_review', reviewer_id: null, reviewer: null,
     review_time: null, review_action: null, review_reason: null,
     fault_report_id: null, alarm_id: null, create_time: new Date('2026-07-11T00:00:00Z'),

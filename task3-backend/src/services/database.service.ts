@@ -128,7 +128,7 @@ function mapReportAuditLog(row: RowDataPacket): ReportAuditLog {
     photoUrls: parsePhotoUrls(row.photo_urls),
     auditPass: row.audit_pass,
     auditReason: row.audit_reason,
-    maxkbResponse: row.maxkb_response ?? null,
+    aiResponse: row.ai_response ?? null,
     reviewStatus: row.review_status,
     reviewerId: row.reviewer_id ?? null,
     reviewer: row.reviewer ?? null,
@@ -273,7 +273,7 @@ export class DatabaseService {
           photo_urls JSON NULL,
           audit_pass TINYINT NOT NULL,
           audit_reason TEXT NOT NULL,
-          maxkb_response LONGTEXT NULL,
+          ai_response LONGTEXT NULL,
           review_status ENUM('ai_rejected','pending_review','approved','rejected') NOT NULL,
           reviewer_id INT NULL,
           reviewer VARCHAR(100) NULL,
@@ -288,6 +288,8 @@ export class DatabaseService {
           INDEX idx_audit_duplicate (report_phone, lamp_id, create_time)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
       `);
+      // 兼容旧表：maxkb_response → ai_response 重命名
+      try { await conn.query(`ALTER TABLE report_audit_log CHANGE COLUMN maxkb_response ai_response LONGTEXT NULL`); } catch (_e: any) {}
       // 兼容旧表：补充可能缺失的列
       try { await conn.query(`ALTER TABLE fault_reports ADD COLUMN alarm_id INT NOT NULL DEFAULT 0`); } catch (_e: any) {}
       try { await conn.query(`ALTER TABLE fault_reports ADD COLUMN status ENUM('active', 'resolved') NOT NULL DEFAULT 'active'`); } catch (_e: any) {}
@@ -651,12 +653,12 @@ export class DatabaseService {
     const [result] = await this.pool().query<ResultSetHeader>(
       `INSERT INTO report_audit_log
        (report_name, report_phone, lamp_id, fault_content, photo_urls, audit_pass, audit_reason,
-        maxkb_response, review_status, reviewer_id, reviewer, review_time, review_action,
+        ai_response, review_status, reviewer_id, reviewer, review_time, review_action,
         review_reason, fault_report_id, alarm_id, create_time)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         log.reportName, log.reportPhone, log.lampId, log.faultContent,
-        JSON.stringify(log.photoUrls), log.auditPass, log.auditReason, log.maxkbResponse,
+        JSON.stringify(log.photoUrls), log.auditPass, log.auditReason, log.aiResponse,
         log.reviewStatus, log.reviewerId, log.reviewer, log.reviewTime, log.reviewAction,
         log.reviewReason, log.faultReportId, log.alarmId, log.createTime,
       ]
