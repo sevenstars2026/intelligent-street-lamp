@@ -112,7 +112,7 @@ async function doLogin() {
     localStorage.setItem('avatar', u.avatar)
     window.dispatchEvent(new CustomEvent('auth-changed'))
 
-    router.push('/dashboard')
+    router.push(loginForm.role === 'admin' ? '/control' : '/dashboard')
   } catch (e) {
     loginError.value = e.message || '登录失败'
   } finally {

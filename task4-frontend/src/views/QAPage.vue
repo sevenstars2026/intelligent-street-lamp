@@ -37,8 +37,8 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 
-// 走 Vite 代理以剥离 X-Frame-Options / CSP 头，避免 iframe 被浏览器拦截
-const maxkbUrl = '/maxkb/chat/1a18bc3351901450'
+// 直连 MaxKB 服务器（同局域网，无需代理）
+const maxkbUrl = 'http://192.168.20.119:8080/chat/1a18bc3351901450'
 
 const loading = ref(true)
 const loadFailed = ref(false)
