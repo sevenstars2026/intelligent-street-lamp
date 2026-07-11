@@ -4,9 +4,9 @@
  * 类型定义已迁移到 src/types/database.types.ts，此处保留兼容 re-export
  */
 
-import type { Device, ThresholdConfig, ControlLog, Alarm, FaultReport } from '../types/database.types';
+import type { Device, ThresholdConfig, ControlLog, Alarm, FaultReport, ReportAuditLog } from '../types/database.types';
 
-export type { Device, ThresholdConfig, ControlLog, Alarm, FaultReport } from '../types/database.types';
+export type { Device, ThresholdConfig, ControlLog, Alarm, FaultReport, ReportAuditLog } from '../types/database.types';
 
 export class MockDatabase {
   private static devices: Map<string, Device> = new Map();
@@ -14,9 +14,11 @@ export class MockDatabase {
   private static controlLogs: ControlLog[] = [];
   private static alarms: Alarm[] = [];
   private static faultReports: FaultReport[] = [];
+  private static reportAuditLogs: ReportAuditLog[] = [];
   private static logIdCounter = 1;
   private static alarmIdCounter = 1;
   private static faultReportIdCounter = 1;
+  private static reportAuditIdCounter = 1;
 
   // 初始化Mock数据
   static init() {
@@ -290,6 +292,86 @@ export class MockDatabase {
     return true;
   }
 
+  // ===== 人工审核 =====
+
+  static addReportAuditLog(log: Omit<ReportAuditLog, 'id'>): ReportAuditLog {
+    const created = { ...log, photoUrls: [...log.photoUrls], id: this.reportAuditIdCounter++ };
+    this.reportAuditLogs.push(created);
+    return { ...created, photoUrls: [...created.photoUrls] };
+  }
+
+  static getReportAuditLogs(filters?: { reviewStatus?: string; auditPass?: number }): ReportAuditLog[] {
+    return this.reportAuditLogs
+      .filter(log => !filters?.reviewStatus || log.reviewStatus === filters.reviewStatus)
+      .filter(log => filters?.auditPass === undefined || log.auditPass === filters.auditPass)
+      .sort((a, b) => b.createTime.getTime() - a.createTime.getTime())
+      .map(log => ({ ...log, photoUrls: [...log.photoUrls] }));
+  }
+
+  static getReportAuditLog(id: number): ReportAuditLog | null {
+    const log = this.reportAuditLogs.find(item => item.id === id);
+    return log ? { ...log, photoUrls: [...log.photoUrls] } : null;
+  }
+
+  static findDuplicateAuditLog(phone: string, lampId: string, description: string, since: Date): ReportAuditLog | null {
+    const log = this.reportAuditLogs
+      .filter(item => item.reportPhone === phone && item.lampId === lampId)
+      .filter(item => item.faultContent.trim() === description.trim())
+      .filter(item => item.createTime >= since && item.reviewStatus !== 'rejected')
+      .sort((a, b) => b.createTime.getTime() - a.createTime.getTime())[0];
+    return log ? { ...log, photoUrls: [...log.photoUrls] } : null;
+  }
+
+  static approveReportAudit(id: number, reviewerId: number, reviewer: string) {
+    const log = this.reportAuditLogs.find(item => item.id === id);
+    if (!log) throw new Error('AUDIT_NOT_FOUND');
+    if (log.reviewStatus !== 'pending_review') throw new Error('AUDIT_ALREADY_REVIEWED');
+
+    const device = this.devices.get(log.lampId);
+    const now = new Date();
+    const alarm = this.addAlarm({
+      deviceId: log.lampId,
+      deviceName: device?.name || log.lampId,
+      alarmType: 'fault_report',
+      alarmLevel: 'medium',
+      status: 'active',
+      message: `游客上报故障：${log.faultContent}`,
+      createdAt: now,
+      handledAt: null,
+      handlerId: null,
+      handlerName: null,
+    });
+    const report = this.addFaultReport({
+      alarmId: alarm.id,
+      reporterName: log.reportName,
+      reporterPhone: log.reportPhone,
+      lampId: log.lampId,
+      description: log.faultContent,
+      photoUrls: [...log.photoUrls],
+      status: 'active',
+      createdAt: log.createTime,
+      resolvedAt: null,
+      resolveNote: null,
+    });
+
+    Object.assign(log, {
+      reviewStatus: 'approved', reviewAction: 'approved', reviewerId, reviewer,
+      reviewTime: now, alarmId: alarm.id, faultReportId: report.id,
+    });
+    return { auditLog: { ...log, photoUrls: [...log.photoUrls] }, alarm, report };
+  }
+
+  static rejectReportAudit(id: number, reviewerId: number, reviewer: string, reviewReason: string): ReportAuditLog {
+    const log = this.reportAuditLogs.find(item => item.id === id);
+    if (!log) throw new Error('AUDIT_NOT_FOUND');
+    if (log.reviewStatus !== 'pending_review') throw new Error('AUDIT_ALREADY_REVIEWED');
+    Object.assign(log, {
+      reviewStatus: 'rejected', reviewAction: 'rejected', reviewerId, reviewer,
+      reviewTime: new Date(), reviewReason,
+    });
+    return { ...log, photoUrls: [...log.photoUrls] };
+  }
+
   // ===== 光照数据管理 =====
 
   private static lightData: Array<{
@@ -368,6 +450,7 @@ export class MockDatabase {
     this.controlLogs = [];
     this.alarms = [];
     this.faultReports = [];
+    this.reportAuditLogs = [];
     this.lightData = [];
     this.aggregatedData = [];
     this.scenicRoutes = [];
@@ -378,6 +461,7 @@ export class MockDatabase {
     this.logIdCounter = 1;
     this.alarmIdCounter = 1;
     this.faultReportIdCounter = 1;
+    this.reportAuditIdCounter = 1;
     this.lightDataIdCounter = 1;
     this.aggregatedDataIdCounter = 1;
   }
