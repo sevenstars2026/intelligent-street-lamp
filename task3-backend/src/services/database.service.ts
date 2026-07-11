@@ -782,17 +782,38 @@ export class DatabaseService {
     id: number, reviewerId: number, reviewer: string, reviewReason: string
   ): Promise<ReportAuditLog> {
     if (this.useMock) return MockDatabase.rejectReportAudit(id, reviewerId, reviewer, reviewReason);
-    const [result] = await this.pool().query<ResultSetHeader>(
-      `UPDATE report_audit_log SET review_status='rejected', reviewer_id=?, reviewer=?,
-       review_time=NOW(), review_action='rejected', review_reason=?
-       WHERE id=? AND review_status='pending_review'`,
-      [reviewerId, reviewer, reviewReason, id]
-    );
-    if (!result.affectedRows) {
-      const existing = await this.getReportAuditLog(id);
-      throw new Error(existing ? 'AUDIT_ALREADY_REVIEWED' : 'AUDIT_NOT_FOUND');
+    const conn = await this.pool().getConnection();
+    try {
+      await conn.beginTransaction();
+      const [auditRows] = await conn.query<RowDataPacket[]>(
+        'SELECT * FROM report_audit_log WHERE id = ? FOR UPDATE', [id]
+      );
+      if (!auditRows.length) throw new Error('AUDIT_NOT_FOUND');
+      const auditLog = mapReportAuditLog(auditRows[0]);
+      if (auditLog.reviewStatus !== 'pending_review') throw new Error('AUDIT_ALREADY_REVIEWED');
+
+      const now = new Date();
+      await conn.query(
+        `UPDATE report_audit_log SET review_status='rejected', reviewer_id=?, reviewer=?,
+         review_time=?, review_action='rejected', review_reason=? WHERE id=?`,
+        [reviewerId, reviewer, now, reviewReason, id]
+      );
+      await conn.commit();
+
+      return {
+        ...auditLog,
+        reviewStatus: 'rejected' as const,
+        reviewerId, reviewer,
+        reviewTime: now,
+        reviewAction: 'rejected' as const,
+        reviewReason,
+      };
+    } catch (error) {
+      await conn.rollback();
+      throw error;
+    } finally {
+      conn.release();
     }
-    return (await this.getReportAuditLog(id))!;
   }
 
   static async getAlarms(filters?: {

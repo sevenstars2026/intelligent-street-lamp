@@ -36,7 +36,7 @@ function parseOutput(rawResponse: string): { pass: boolean; reason: string } | n
     const codeBlockMatch = rawResponse.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
     if (codeBlockMatch) json = codeBlockMatch[1].trim();
     else {
-      const bracketMatch = rawResponse.match(/\{[\s\S]*"pass"[\s\S]*\}/);
+      const bracketMatch = rawResponse.match(/\{[^{}]*"pass"[^{}]*\}/);
       if (bracketMatch) json = bracketMatch[0];
     }
     const output = JSON.parse(json);
