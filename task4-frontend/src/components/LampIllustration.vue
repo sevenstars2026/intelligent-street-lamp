@@ -172,6 +172,23 @@
         <text x="474" y="228" text-anchor="middle" :fill="labelColor" font-size="11" font-weight="500">故障上报</text>
       </g>
 
+      <!-- 模块5：智能问答（仅管理员） -->
+      <g v-if="showQa" class="module-group module-clickable" @click="$emit('nav-qa')">
+        <path class="dash-line" d="M462 490 Q432 475 390 468 Q350 460 320 457" :stroke="accentColor" stroke-width="1.5"
+              fill="none" stroke-dasharray="5 4" filter="url(#glow-cyan)" />
+        <circle class="conn-dot" cx="320" cy="457" r="4" :fill="accentColor" filter="url(#glow-cyan)" />
+        <circle class="outer-ring ring-1" cx="474" cy="505" r="30" fill="none" :stroke="accentColor" stroke-width="0.6" />
+        <circle class="outer-ring ring-2" cx="474" cy="505" r="36" fill="none" :stroke="accentColor" stroke-width="0.4" />
+        <circle class="icon-bg" cx="474" cy="505" r="25" :fill="iconBgFill" :stroke="accentColor" stroke-width="1.5" filter="url(#glow-cyan)" />
+        <g class="icon-inner qa-icon" transform="translate(474, 505)" fill="none" :stroke="accentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="0" cy="-4" r="8" />
+          <circle cx="-3" cy="-4" r="1.5" :fill="accentColor" />
+          <circle cx="3" cy="-4" r="1.5" :fill="accentColor" />
+          <path d="M-4 0 Q0 5 4 0" />
+        </g>
+        <text x="474" y="547" text-anchor="middle" :fill="labelColor" font-size="11" font-weight="500">智能问答</text>
+      </g>
+
       <!-- 模块3：通讯报警 -->
       <g class="module-group module-clickable" @click="$emit('show-alarm')">
         <path class="dash-line" d="M142 490 Q172 475 210 468 Q250 460 280 457" :stroke="accentColor" stroke-width="1.5"
@@ -204,7 +221,8 @@
 <script setup>
 import { ref, inject, computed } from 'vue'
 
-const emit = defineEmits(['nav-lighting', 'nav-weather', 'show-alarm', 'nav-fault-reports'])
+const props = defineProps({ showQa: { type: Boolean, default: false } })
+const emit = defineEmits(['nav-lighting', 'nav-weather', 'show-alarm', 'nav-fault-reports', 'nav-qa'])
 const theme = inject('theme', ref('dark'))
 
 // 主题感知颜色
@@ -345,6 +363,19 @@ const skylineOpacity = computed(() => isDark.value ? 0.12 : 0.18)
   93%           { transform: rotate(-5deg); }
   95%           { transform: rotate(3deg); }
   97%           { transform: rotate(0deg); }
+}
+
+/* ===== 智能问答：机器人浮动 + 眨眼 ===== */
+.qa-icon { animation: qa-bob 4s ease-in-out infinite; }
+@keyframes qa-bob {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 0 -3px; }
+}
+.qa-icon circle:nth-child(2) { animation: qa-blink 3s ease-in-out infinite; }
+.qa-icon circle:nth-child(3) { animation: qa-blink 3s ease-in-out 0.15s infinite; }
+@keyframes qa-blink {
+  0%, 45%, 55%, 100% { opacity: 1; }
+  50% { opacity: 0.15; }
 }
 
 /* ===== Hover 增强 ===== */

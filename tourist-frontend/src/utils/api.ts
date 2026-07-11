@@ -26,8 +26,8 @@ export function getScenicLamps() { return api.get('/scenic/lamps') }
 
 // ===== 故障上报 =====
 export function submitFaultReport(formData) {
+  // 不手动设置 Content-Type，让浏览器自动添加 boundary 参数
   return api.post('/reports', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 30000,
   })
 }

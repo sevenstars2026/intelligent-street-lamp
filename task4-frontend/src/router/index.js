@@ -37,6 +37,12 @@ const routes = [
     meta: { title: '故障上报', roles: ['admin', 'municipal'] },
   },
   {
+    path: '/qa',
+    name: 'QA',
+    component: () => import('@/views/QAPage.vue'),
+    meta: { title: '智能问答', roles: ['admin'] },
+  },
+  {
     path: '/',
     redirect: '/dashboard',
   },
