@@ -368,8 +368,8 @@ const skylineOpacity = computed(() => isDark.value ? 0.12 : 0.18)
 /* ===== 智能问答：机器人浮动 + 眨眼 ===== */
 .qa-icon { animation: qa-bob 4s ease-in-out infinite; }
 @keyframes qa-bob {
-  0%, 100% { transform: translate(474px, 505px) translateY(0); }
-  50%      { transform: translate(474px, 505px) translateY(-3px); }
+  0%, 100% { translate: 0 0; }
+  50%      { translate: 0 -3px; }
 }
 .qa-icon circle:nth-child(2) { animation: qa-blink 3s ease-in-out infinite; }
 .qa-icon circle:nth-child(3) { animation: qa-blink 3s ease-in-out 0.15s infinite; }

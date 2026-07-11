@@ -22,6 +22,7 @@
       <!-- iframe 始终在 DOM 中才能触发 @load -->
       <div class="qa-iframe-wrap">
         <iframe
+          :key="iframeKey"
           :src="maxkbUrl"
           class="qa-iframe"
           allow="microphone"
@@ -36,10 +37,12 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue'
 
-const maxkbUrl = 'http://192.168.20.119:8080/chat/1a18bc3351901450'
+// 走 Vite 代理以剥离 X-Frame-Options / CSP 头，避免 iframe 被浏览器拦截
+const maxkbUrl = '/maxkb/chat/1a18bc3351901450'
 
 const loading = ref(true)
 const loadFailed = ref(false)
+const iframeKey = ref(0)
 let timeoutId = null
 
 // 8 秒后仍未加载完成则视为失败
@@ -65,7 +68,7 @@ function onIframeLoad() {
 function retry() {
   loading.value = true
   loadFailed.value = false
-  // 强制刷新 iframe
+  iframeKey.value++  // 强制销毁并重建 iframe，触发重新加载
   timeoutId = setTimeout(() => {
     if (loading.value) {
       loading.value = false
