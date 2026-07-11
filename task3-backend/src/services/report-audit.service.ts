@@ -9,7 +9,7 @@ export interface CreateAuditLogData {
   photoUrls: string[];
   auditPass: AuditPass;
   auditReason: string;
-  maxkbResponse?: string | null;
+  aiResponse?: string | null;
   reviewStatus: Extract<ReviewStatus, 'ai_rejected' | 'pending_review'>;
 }
 
@@ -17,7 +17,7 @@ export class ReportAuditService {
   static createAuditLog(data: CreateAuditLogData): Promise<ReportAuditLog> {
     return DatabaseService.addReportAuditLog({
       ...data,
-      maxkbResponse: data.maxkbResponse ?? null,
+      aiResponse: data.aiResponse ?? null,
       reviewerId: null,
       reviewer: null,
       reviewTime: null,

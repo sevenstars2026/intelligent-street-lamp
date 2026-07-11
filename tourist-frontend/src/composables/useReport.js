@@ -46,7 +46,9 @@ export function useReport() {
       success.value = true
       return true
     } catch (e) {
-      error.value = e.message || '提交失败，请重试'
+      // 优先使用服务端返回的具体错误信息，而非 axios 通用 HTTP 状态文本
+      const serverMsg = e.response?.data?.message
+      error.value = serverMsg || e.message || '提交失败，请重试'
       return false
     } finally {
       submitting.value = false

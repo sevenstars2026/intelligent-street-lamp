@@ -4,7 +4,7 @@ function pending(overrides = {}) {
   return {
     reportName: '张三', reportPhone: '13800138000', lampId: 'lamp_001',
     faultContent: '路灯连续多日无法正常点亮', photoUrls: ['one.jpg'], auditPass: 1,
-    auditReason: '内容合规', maxkbResponse: '{}', reviewStatus: 'pending_review',
+    auditReason: '内容合规', aiResponse: '{}', reviewStatus: 'pending_review',
     reviewerId: null, reviewer: null, reviewTime: null, reviewAction: null,
     reviewReason: null, faultReportId: null, alarmId: null, createTime: new Date(),
     ...overrides,

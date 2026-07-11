@@ -71,7 +71,7 @@ export interface ReportAuditLog {
   photoUrls: string[];
   auditPass: AuditPass;
   auditReason: string;
-  maxkbResponse: string | null;
+  aiResponse: string | null;
   reviewStatus: ReviewStatus;
   reviewerId: number | null;
   reviewer: string | null;

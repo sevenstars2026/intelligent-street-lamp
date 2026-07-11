@@ -3,7 +3,7 @@ import { unlink } from 'fs/promises';
 import path from 'path';
 import { ReportService } from '../services/report.service';
 import { ReportAuditService } from '../services/report-audit.service';
-import { callMaxKBWorkflow } from '../utils/http-client';
+import { callDeepSeekAudit } from '../utils/http-client';
 
 async function deleteUploadedFiles(files: Express.Multer.File[]): Promise<void> {
   await Promise.all(files.map(file =>
@@ -43,7 +43,7 @@ export class ReportController {
         return;
       }
 
-      const aiResult = await callMaxKBWorkflow({
+      const aiResult = await callDeepSeekAudit({
         reportName: name.trim(), reportPhone: phone, lampId, faultContent: normalizedDescription,
       });
 
@@ -57,7 +57,7 @@ export class ReportController {
         photoUrls: auditPass === 0 ? [] : files.map(file => file.filename),
         auditPass,
         auditReason: aiResult.reason,
-        maxkbResponse: aiResult.rawResponse,
+        aiResponse: aiResult.rawResponse,
         reviewStatus,
       });
 
