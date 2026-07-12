@@ -186,7 +186,6 @@
         </div>
         <div class="dialog-fault-item" @click="goReview">
           <div class="dialog-item-top">
-            <span class="pulse-dot online"></span>
             <span class="dialog-device-id">上报审核</span>
           </div>
           <div class="dialog-item-info">
@@ -195,7 +194,6 @@
         </div>
         <div class="dialog-fault-item" @click="goFaultList">
           <div class="dialog-item-top">
-            <span class="pulse-dot online"></span>
             <span class="dialog-device-id">故障详情</span>
           </div>
           <div class="dialog-item-info">
@@ -862,12 +860,12 @@ watch(displayDevices, () => {
 </style>
 
 <style>
-/* 故障上报弹窗深色模式 */
+/* 故障上报弹窗 - 跟随深浅色模式 */
 .fault-dialog {
-  --el-dialog-bg-color: #28314e;
+  --el-dialog-bg-color: var(--color-bg-secondary);
 }
 .fault-dialog .el-dialog {
-  background: #28314e;
+  background: var(--color-bg-secondary);
   border: 1px solid var(--color-border-subtle);
   box-shadow: 0 8px 40px rgba(0,0,0,0.5);
 }
@@ -879,6 +877,19 @@ watch(displayDevices, () => {
   padding: 20px 24px;
 }
 .fault-dialog .el-dialog__footer { display: none; }
-.fault-dialog .el-dialog__headerbtn .el-dialog__close { color: #7888af; }
-.fault-dialog .el-dialog__headerbtn .el-dialog__close:hover { color: #eef2fb; }
+.fault-dialog .el-dialog__headerbtn .el-dialog__close { color: var(--color-text-muted); }
+.fault-dialog .el-dialog__headerbtn .el-dialog__close:hover { color: var(--color-text-primary); }
+
+/* 故障弹窗内文字统一使用系统字体（覆盖 scoped 中的 monospace） */
+.fault-dialog .dialog-device-id {
+  font-family: var(--font-sans);
+}
+/* 故障弹窗摘要栏 — 橙色系 */
+.fault-dialog .dialog-summary {
+  background: rgba(240, 160, 80, 0.08);
+  border-color: rgba(240, 160, 80, 0.15);
+}
+.fault-dialog .dialog-summary .summary-text strong {
+  color: #f0a050;
+}
 </style>

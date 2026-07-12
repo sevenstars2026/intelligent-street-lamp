@@ -61,6 +61,20 @@ export class ReportService {
       throw new Error('REPORT_RESOLVE_FAILED');
     }
 
+    // 同步处理关联的告警记录（alarms 表），确保通讯报警/市政人员页面同步更新
+    console.log(`[ReportService] Resolving report #${id}, linked alarmId=${report.alarmId}`);
+    if (report.alarmId > 0) {
+      try {
+        const alarmResolved = await DatabaseService.resolveAlarm(report.alarmId, 0, '故障上报已处理');
+        console.log(`[ReportService] Linked alarm #${report.alarmId} resolve result: ${alarmResolved}`);
+      } catch (e) {
+        // 告警处理失败不阻塞上报处理流程（告警可能已被单独处理）
+        console.warn(`[ReportService] Failed to resolve linked alarm #${report.alarmId}:`, e);
+      }
+    } else {
+      console.warn(`[ReportService] Report #${id} has alarmId=${report.alarmId} — skipping alarm sync (no linked alarm)`);
+    }
+
     return {
       id,
       resolvedAt: new Date().toISOString(),

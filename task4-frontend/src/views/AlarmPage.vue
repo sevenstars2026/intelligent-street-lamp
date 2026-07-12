@@ -93,14 +93,16 @@
               <td>{{ a.handlerName || '—' }}</td>
               <td>
                 <button
-                  v-if="a.status === 'active'"
+                  v-if="a.status === 'active' && isAdmin && a.type !== 'fault_report'"
                   class="resolve-btn"
                   :disabled="resolvingId === a.alarmId"
                   @click="handleResolve(a)"
                 >
                   {{ resolvingId === a.alarmId ? '处理中...' : '处理' }}
                 </button>
-                <span v-else class="handled-text">{{ formatTime(a.handledAt) }}</span>
+                <span v-else-if="a.status === 'active' && a.type === 'fault_report'" class="handled-text hint-text">在故障上报页处理</span>
+                <span v-else-if="a.status !== 'active'" class="handled-text">{{ formatTime(a.handledAt) }}</span>
+                <span v-else class="handled-text">—</span>
               </td>
             </tr>
           </tbody>
@@ -129,6 +131,9 @@ import { useToast } from '@/composables/useToast.js'
 
 const { alarms, loading, error, pagination, loadAlarms, resolveAlarm, getLevelConfig } = useAlarms()
 const { showToast } = useToast()
+
+const role = localStorage.getItem('role') || 'admin'
+const isAdmin = role === 'admin'
 
 let refreshTimer = null
 let refreshHandler = null
@@ -419,6 +424,10 @@ onUnmounted(() => {
   color: var(--color-text-muted);
   font-size: 12px;
   white-space: nowrap;
+}
+.hint-text {
+  color: var(--color-brand-soft);
+  font-style: italic;
 }
 
 .pagination-bar {

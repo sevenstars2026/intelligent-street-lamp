@@ -64,27 +64,31 @@ src/
 ├── App.vue                      # 壳组件（主题提供 + 路由出口 + 全局刷新）
 ├── style.css                    # 设计系统（CSS 自定义属性 + 深/浅主题 + 全局样式）
 ├── router/
-│   └── index.js                 # 5 条路由（全部 lazy-loaded）+ 导航守卫
+│   └── index.js                 # 8 条路由（全部 lazy-loaded）+ 导航守卫
 ├── composables/                 # 模块级单例（无 Pinia）
 │   ├── useTheme.js              # 主题切换 + localStorage 持久化
 │   ├── useDevices.js            # 设备数据 + 光照历史 + 图表数据构建
 │   ├── useAlarms.js             # 告警数据 + 状态管理
 │   └── useToast.js              # Toast 通知队列
-├── components/                  # 共享组件（6 个）
+├── components/                  # 共享组件（7 个）
 │   ├── TopNav.vue               # 顶栏导航 + 主题切换 + 用户信息
 │   ├── StatCard.vue             # 统计卡片（数字滚动动画）
 │   ├── LightChart.vue           # ECharts 折线图（主题感知）
 │   ├── DeviceTable.vue          # 设备状态表格（可复用）
 │   ├── ModalOverlay.vue         # 通用弹窗容器
-│   └── ToastMessage.vue         # Toast 通知渲染
-├── views/                       # 页面组件（5 个）
+│   ├── ToastMessage.vue         # Toast 通知渲染
+│   └── LampIllustration.vue     # SVG 路灯示意图
+├── views/                       # 页面组件（8 个）
 │   ├── LoginPage.vue            # 登录页
 │   ├── DashboardPage.vue        # 数据总览
 │   ├── ControlPage.vue          # 设备控制
 │   ├── HistoryPage.vue          # 历史数据
-│   └── AlarmPage.vue            # 告警日志
+│   ├── AlarmPage.vue            # 告警日志
+│   ├── ReviewPage.vue           # 上报审核
+│   ├── FaultReportsPage.vue     # 故障上报管理
+│   └── QAPage.vue               # AI 智能问答
 └── utils/
-    └── api.ts                   # Axios 封装（14 个 API 函数）
+    └── api.ts                   # Axios 封装（~20 个 API 函数）
 ```
 
 ### 2.2 设计决策
@@ -120,6 +124,9 @@ src/
 | `/control` | Control | `ControlPage.vue` | 设备控制 |
 | `/history` | History | `HistoryPage.vue` | 历史数据 |
 | `/alarms` | Alarms | `AlarmPage.vue` | 告警日志 |
+| `/review` | Review | `ReviewPage.vue` | 上报审核（municipal 可见） |
+| `/fault-reports` | FaultReports | `FaultReportsPage.vue` | 故障上报管理 |
+| `/qa` | QA | `QAPage.vue` | AI 智能问答 |
 | `/` | — | → 重定向到 `/dashboard` | — |
 
 ### 3.2 导航守卫
