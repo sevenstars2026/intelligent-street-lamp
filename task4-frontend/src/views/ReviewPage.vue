@@ -181,7 +181,8 @@ async function loadData() {
     list.value = data
     totalPages.value = res.totalPages || res.data?.totalPages || Math.ceil(data.length / pageSize) || 1
     pendingCount.value = res.pendingCount ?? res.data?.pendingCount ?? (Array.isArray(data) ? data.filter(l => l.reviewStatus === 'pending_review').length : 0)
-  } catch { list.value = [] } finally { loading.value = false }
+    return true
+  } catch { list.value = []; return false } finally { loading.value = false }
 }
 async function openDetail(log) {
   try {
@@ -197,7 +198,8 @@ async function doApprove() {
     await approveReview(detail.value.id)
     showToast('审核通过', 'success')
     detailShow.value = false
-    loadData()
+    const ok = await loadData()
+    if (!ok) showToast('列表刷新失败，请手动刷新', 'error')
   } catch (e) {
     showToast(e.message || '审核操作失败', 'error')
   } finally {
@@ -212,7 +214,8 @@ async function doReject() {
     await rejectReview(detail.value.id, reviewNote.value.trim())
     showToast('已驳回', 'success')
     detailShow.value = false
-    loadData()
+    const ok = await loadData()
+    if (!ok) showToast('列表刷新失败，请手动刷新', 'error')
   } catch (e) {
     showToast(e.message || '驳回操作失败', 'error')
   } finally {
