@@ -31,10 +31,10 @@
                                │
                ┌───────────────┼───────────────┐
                ▼               ▼               ▼
-          ┌─────────┐    ┌─────────┐    ┌─────────┐
-          │  MySQL  │    │  MQTT   │    │ MaxKB AI│
-          │ 远程DB  │    │ Broker  │    │ :8080   │
-          └─────────┘    └────┬────┘    └─────────┘
+          ┌─────────┐    ┌─────────┐    ┌──────────┐
+          │  MySQL  │    │  MQTT   │    │ DeepSeek │
+          │ 远程DB  │    │ Broker  │    │ API      │
+          └─────────┘    └────┬────┘    └──────────┘
                               │
                          ┌────▼────┐
                          │ 硬件设备  │
@@ -201,14 +201,16 @@ netsh advfirewall firewall add rule name="Vite 5174" dir=in action=allow protoco
 ```
 intelligent-street-lamp/
 ├── README.md                              # 本文件（项目总览）
-├── 任务3_API接口设计文档.md                # API 接口文档
-├── 自动控制功能接口规范.md                  # 自动控制规范
-├── 测试报告.md                             # 接口测试结果
+├── 告警系统设计开发规范.md                  # 告警系统完整设计规范
+├── 自动控制功能接口规范.md                  # MQTT 自动控制规范
 ├── docs/                                  # 设计文档
 │   ├── 景区游客端-计划书.md                # 游客端整体计划
-│   ├── 景区游客端-后端功能设计.md           # 5 个新 API + 图片上传
+│   ├── 景区游客端-后端功能设计.md           # 后端景区 API 详细设计
 │   ├── 景区游客端-前端功能设计.md           # 独立 SPA 功能设计
 │   ├── 管理员端-故障上报查看-设计规划.md     # 故障上报管理页设计
+│   ├── 智能检测系统计划书.md               # DeepSeek AI 审核设计
+│   ├── 人工审核系统-前端改动清单.md         # 审核管理页前端设计
+│   ├── 人工审核系统-后端改动清单.md         # 审核API + 数据库设计
 │   ├── 路灯间路线显示-技术分析.md           # Leaflet + 三级回退策略
 │   ├── BUG-自动模式手动控制逻辑修复要求.md   # P1 待修复 BUG
 │   └── qr-codes/                          # 路灯 QR 码图片
@@ -217,11 +219,11 @@ intelligent-street-lamp/
 │   ├── src/
 │   │   ├── App.vue                        # 根组件（主题+路由出口+全局刷新）
 │   │   ├── style.css                      # 暗色科技风设计系统
-│   │   ├── router/index.js                # 5 条路由（含 /fault-reports）
+│   │   ├── router/index.js                # 8 条路由
 │   │   ├── composables/                   # useDevices, useAlarms, useTheme, useToast
-│   │   ├── components/                    # TopNav, StatCard, LightChart, DeviceTable 等
-│   │   ├── views/                         # Dashboard, Control, History, Alarm, FaultReports
-│   │   └── utils/api.ts                  # Axios 封装（17 个 API 函数）
+│   │   ├── components/                    # TopNav, ModalOverlay, DeviceTable 等
+│   │   ├── views/                         # Dashboard, Control, Alarm, Review, FaultReports 等
+│   │   └── utils/api.ts                  # Axios 封装（~20 个 API 函数）
 │   ├── vite.config.js                     # :5173 + /api,/uploads proxy
 │   └── README.md                          # 管理端完整使用文档
 │
@@ -295,7 +297,7 @@ intelligent-street-lamp/
 | 数据库 | MySQL 8 (mysql2/promise, utf8mb4) |
 | 消息协议 | MQTT (mqtt.js) |
 | 图片上传 | multer |
-| AI 对话 | MaxKB (iframe 嵌入) |
+| AI 对话 | DeepSeek（AI 审核）+ AI 智能问答 |
 | 路线规划 | 高德步行路径规划 API → OSRM → 本地途经点（三级回退） |
 
 ---
@@ -308,12 +310,14 @@ intelligent-street-lamp/
 | [task4-frontend/README.md](task4-frontend/README.md) | 管理端开发/使用完整指南 |
 | [tourist-frontend/README.md](tourist-frontend/README.md) | 游客端开发/使用完整指南 |
 | [task3-backend/README.md](task3-backend/README.md) | 后端代码说明 |
-| [任务3_API接口设计文档.md](任务3_API接口设计文档.md) | ~21 个 API 完整规范 |
+| [告警系统设计开发规范.md](告警系统设计开发规范.md) | 告警系统完整设计规范 |
 | [自动控制功能接口规范.md](自动控制功能接口规范.md) | MQTT 消息架构和自动控制规范 |
 | [docs/景区游客端-计划书.md](docs/景区游客端-计划书.md) | 游客端整体计划 |
 | [docs/景区游客端-后端功能设计.md](docs/景区游客端-后端功能设计.md) | 后端景区 API 详细设计 |
 | [docs/景区游客端-前端功能设计.md](docs/景区游客端-前端功能设计.md) | 游客端 SPA 功能设计 |
 | [docs/管理员端-故障上报查看-设计规划.md](docs/管理员端-故障上报查看-设计规划.md) | 故障上报管理页设计 |
+| [docs/智能检测系统计划书.md](docs/智能检测系统计划书.md) | DeepSeek AI 审核三阶段设计 |
+| [docs/人工审核系统-前端改动清单.md](docs/人工审核系统-前端改动清单.md) | 审核管理页面前端设计 |
+| [docs/人工审核系统-后端改动清单.md](docs/人工审核系统-后端改动清单.md) | 审核 API + report_audit_log 表设计 |
 | [docs/路灯间路线显示-技术分析.md](docs/路灯间路线显示-技术分析.md) | Leaflet + 三级回退策略 |
 | [docs/BUG-自动模式手动控制逻辑修复要求.md](docs/BUG-自动模式手动控制逻辑修复要求.md) | P1 待修复 BUG |
-| [测试报告.md](测试报告.md) | 接口测试结果 |

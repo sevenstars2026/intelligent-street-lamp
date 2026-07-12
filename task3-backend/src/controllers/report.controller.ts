@@ -3,6 +3,7 @@ import { unlink } from 'fs/promises';
 import path from 'path';
 import { ReportService } from '../services/report.service';
 import { ReportAuditService } from '../services/report-audit.service';
+import { DatabaseService } from '../services/database.service';
 import { callDeepSeekAudit } from '../utils/http-client';
 
 async function deleteUploadedFiles(files: Express.Multer.File[]): Promise<void> {
@@ -29,6 +30,13 @@ export class ReportController {
       }
       if (typeof lampId !== 'string' || !/^lamp_\d{3}$/.test(lampId)) {
         res.status(400).json({ code: 400, message: '路灯编号格式为 lamp_XXX', data: null });
+        return;
+      }
+
+      // 校验路灯编号是否真实存在
+      const device = await DatabaseService.getDevice(lampId);
+      if (!device) {
+        res.status(400).json({ code: 400, message: `路灯 ${lampId} 不存在，请确认编号是否正确`, data: null });
         return;
       }
       if (typeof description !== 'string' || description.length < 10 || description.length > 200) {

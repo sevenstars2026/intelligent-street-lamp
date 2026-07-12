@@ -86,14 +86,15 @@
               </td>
               <td>
                 <button
-                  v-if="r.status === 'active'"
+                  v-if="r.status === 'active' && isAdmin"
                   class="resolve-btn"
                   :disabled="resolvingId === r.id"
                   @click.stop="handleResolve(r)"
                 >
                   {{ resolvingId === r.id ? '处理中...' : '处理' }}
                 </button>
-                <span v-else class="handled-text">{{ formatTime(r.resolvedAt) }}</span>
+                <span v-else-if="r.status !== 'active'" class="handled-text">{{ formatTime(r.resolvedAt) }}</span>
+                <span v-else class="handled-text">—</span>
               </td>
             </tr>
           </tbody>
@@ -179,7 +180,7 @@
       <template #footer>
         <button class="detail-close-btn" @click="selectedReport = null">关闭</button>
         <button
-          v-if="selectedReport.status === 'active'"
+          v-if="selectedReport.status === 'active' && isAdmin"
           class="resolve-btn"
           :disabled="resolvingId === selectedReport.id"
           @click.stop="handleResolve(selectedReport)"
@@ -198,6 +199,9 @@ import { useToast } from '@/composables/useToast.js'
 import { getFaultReports, resolveFaultReport } from '@/utils/api.ts'
 
 const { showToast } = useToast()
+
+const role = localStorage.getItem('role') || 'admin'
+const isAdmin = role === 'admin'
 
 const reports = ref([])
 const loading = ref(false)

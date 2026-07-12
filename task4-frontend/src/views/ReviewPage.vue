@@ -93,8 +93,8 @@
             <textarea v-model="reviewNote" class="review-textarea" placeholder="请输入审核意见..." rows="3"></textarea>
           </div>
           <div class="review-btns">
-            <button class="btn-reject" @click="doReject">驳回</button>
-            <button class="btn-approve" @click="doApprove">审核通过</button>
+            <button class="btn-reject" :disabled="submitting" @click="doReject">{{ submitting ? '提交中...' : '驳回' }}</button>
+            <button class="btn-approve" :disabled="submitting" @click="doApprove">{{ submitting ? '提交中...' : '审核通过' }}</button>
           </div>
         </template>
 
@@ -119,7 +119,7 @@ import ModalOverlay from '@/components/ModalOverlay.vue'
 import { useToast } from '@/composables/useToast.js'
 import { getReviewList, getReviewDetail, approveReview, rejectReview } from '@/utils/api.ts'
 
-const { show: showToast } = useToast()
+const { showToast } = useToast()
 const role = localStorage.getItem('role') || 'admin'
 const isMunicipal = role === 'municipal'
 
@@ -134,6 +134,7 @@ const reviewStatusFilter = ref(isMunicipal ? '' : '')
 const detailShow = ref(false)
 const detail = ref({})
 const reviewNote = ref('')
+const submitting = ref(false)
 let refreshTimer = null
 
 const pending = computed(() => list.value.filter(l => l.reviewStatus === 'pending_review').length)
@@ -190,13 +191,33 @@ async function openDetail(log) {
   detailShow.value = true; reviewNote.value = ''
 }
 async function doApprove() {
-  await approveReview(detail.value.id)
-  showToast('审核通过', 'success'); detailShow.value = false; loadData()
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    await approveReview(detail.value.id)
+    showToast('审核通过', 'success')
+    detailShow.value = false
+    loadData()
+  } catch (e) {
+    showToast(e.message || '审核操作失败', 'error')
+  } finally {
+    submitting.value = false
+  }
 }
 async function doReject() {
   if (!reviewNote.value.trim()) { showToast('驳回时请填写审核意见', 'error'); return }
-  await rejectReview(detail.value.id, reviewNote.value.trim())
-  showToast('已驳回', 'success'); detailShow.value = false; loadData()
+  if (submitting.value) return
+  submitting.value = true
+  try {
+    await rejectReview(detail.value.id, reviewNote.value.trim())
+    showToast('已驳回', 'success')
+    detailShow.value = false
+    loadData()
+  } catch (e) {
+    showToast(e.message || '驳回操作失败', 'error')
+  } finally {
+    submitting.value = false
+  }
 }
 
 onMounted(() => { loadData(); refreshTimer = setInterval(loadData, 60000) })
@@ -268,7 +289,9 @@ onUnmounted(() => { if (refreshTimer) clearInterval(refreshTimer) })
 .review-textarea { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--color-border-subtle); background: var(--color-bg-secondary); color: var(--color-text-primary); font-size: 13px; resize: vertical; font-family: var(--font-sans); outline: none; }
 .review-textarea:focus { border-color: var(--color-brand); }
 .review-btns { display: flex; gap: 12px; justify-content: flex-end; }
-.btn-approve { padding: 10px 28px; border-radius: 8px; border: none; background: #22c55e; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font-sans); }
-.btn-reject { padding: 10px 28px; border-radius: 8px; border: 1px solid rgba(239,68,68,0.3); background: transparent; color: #ef4444; font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font-sans); }
+.btn-approve { padding: 10px 28px; border-radius: 8px; border: none; background: #22c55e; color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font-sans); transition: opacity 0.15s; }
+.btn-approve:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-reject { padding: 10px 28px; border-radius: 8px; border: 1px solid rgba(239,68,68,0.3); background: transparent; color: #ef4444; font-size: 14px; font-weight: 600; cursor: pointer; font-family: var(--font-sans); transition: opacity 0.15s; }
+.btn-reject:disabled { opacity: 0.5; cursor: not-allowed; }
 .review-history { display: flex; flex-direction: column; gap: 10px; background: rgba(101,138,228,0.03); border-radius: 10px; padding: 14px; }
 </style>
