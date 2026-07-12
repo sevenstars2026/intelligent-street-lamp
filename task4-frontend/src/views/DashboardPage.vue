@@ -163,6 +163,48 @@
         <el-button type="primary" @click="goAlarms">查看告警日志</el-button>
       </template>
     </el-dialog>
+
+    <!-- ===== 故障上报选择弹窗 ===== -->
+    <el-dialog
+      v-model="showFaultDialog"
+      width="520px"
+      :close-on-click-modal="false"
+      class="fault-dialog"
+    >
+      <template #header>
+        <div class="dialog-header-custom">
+          <svg viewBox="0 0 20 20" fill="currentColor" class="dialog-fault-icon">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+          </svg>
+          <span>故障上报</span>
+        </div>
+      </template>
+
+      <div class="dialog-body">
+        <div class="dialog-summary">
+          <span class="summary-text">请选择操作类型</span>
+        </div>
+        <div class="dialog-fault-item" @click="goReview">
+          <div class="dialog-item-top">
+            <span class="pulse-dot online"></span>
+            <span class="dialog-device-id">上报审核</span>
+          </div>
+          <div class="dialog-item-info">
+            <span class="info-label">对所有故障上报进行审核（通过/驳回）</span>
+          </div>
+        </div>
+        <div class="dialog-fault-item" @click="goFaultList">
+          <div class="dialog-item-top">
+            <span class="pulse-dot online"></span>
+            <span class="dialog-device-id">故障详情</span>
+          </div>
+          <div class="dialog-item-info">
+            <span class="info-label">查看审核完成的故障上报记录</span>
+          </div>
+        </div>
+      </div>
+
+    </el-dialog>
   </div>
 </template>
 
@@ -228,9 +270,10 @@ function openAlarmDialog() {
   showAlarmDialog.value = true
 }
 
-function goFaultReports() {
-  router.push('/fault-reports')
-}
+const showFaultDialog = ref(false)
+function goFaultReports() { showFaultDialog.value = true }
+function goReview() { showFaultDialog.value = false; router.push('/review') }
+function goFaultList() { showFaultDialog.value = false; router.push('/fault-reports') }
 
 function goQA() {
   router.push('/qa')
@@ -774,6 +817,19 @@ watch(displayDevices, () => {
   padding: 14px 24px;
 }
 
+/* ===== 故障上报选择弹窗 ===== */
+.dialog-fault-icon { width: 20px; height: 20px; color: #f0a050; }
+
+.dialog-fault-item {
+  padding: 12px 0; border-bottom: 1px solid var(--color-border-subtle);
+  background: rgba(11, 23, 191, 0.04); border: 1px solid rgba(240,160,80,0.1);
+  border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer;
+  transition: all 0.2s;
+}
+.dialog-fault-item:last-child { margin-bottom: 0; }
+.dialog-fault-item:hover { background: rgba(240,160,80,0.08); border-color: rgba(240,160,80,0.2); }
+
+
 /* ===== 响应式 ===== */
 @media (max-width: 1400px) {
   .dashboard-page {
@@ -803,4 +859,26 @@ watch(displayDevices, () => {
     overflow: auto;
   }
 }
+</style>
+
+<style>
+/* 故障上报弹窗深色模式 */
+.fault-dialog {
+  --el-dialog-bg-color: #28314e;
+}
+.fault-dialog .el-dialog {
+  background: #28314e;
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+}
+.fault-dialog .el-dialog__header {
+  border-bottom: 1px solid rgba(240,160,80,0.1);
+  padding: 18px 24px; margin: 0;
+}
+.fault-dialog .el-dialog__body {
+  padding: 20px 24px;
+}
+.fault-dialog .el-dialog__footer { display: none; }
+.fault-dialog .el-dialog__headerbtn .el-dialog__close { color: #7888af; }
+.fault-dialog .el-dialog__headerbtn .el-dialog__close:hover { color: #eef2fb; }
 </style>

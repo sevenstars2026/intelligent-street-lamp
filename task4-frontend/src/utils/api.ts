@@ -111,6 +111,18 @@ export function resolveFaultReport(id: number, note?: string) {
   return api.put(`/reports/${id}/resolve`, { note })
 }
 
+// ===== 人工审核 =====
+export function getReviewList(params?: {
+  reviewStatus?: string; auditPass?: number; page?: number; pageSize?: number;
+}) {
+  return api.get('/review/list', { params })
+}
+export function getReviewDetail(id: number) { return api.get(`/review/${id}`) }
+export function approveReview(id: number) { return api.put(`/review/${id}/approve`) }
+export function rejectReview(id: number, reviewReason: string) {
+  return api.put(`/review/${id}/reject`, { reviewReason })
+}
+
 // ===== 健康检查 =====
 export function getHealth() { return api.get('/health') }
 

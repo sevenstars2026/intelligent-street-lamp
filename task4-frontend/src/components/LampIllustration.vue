@@ -197,7 +197,8 @@
         <circle class="outer-ring ring-1" cx="126" cy="505" r="30" fill="none" :stroke="accentColor" stroke-width="0.6" />
         <circle class="outer-ring ring-2" cx="126" cy="505" r="36" fill="none" :stroke="accentColor" stroke-width="0.4" />
         <circle class="icon-bg alarm-bg" cx="126" cy="505" r="25" :fill="iconBgFill" :stroke="accentColor" stroke-width="1.5" filter="url(#glow-cyan)" />
-        <g class="icon-inner alarm-icon" transform="translate(126, 505)" fill="none" :stroke="accentColor" stroke-width="1.3" stroke-linecap="round">
+        <g class="icon-inner" transform="translate(126, 505)" fill="none" :stroke="accentColor" stroke-width="1.3" stroke-linecap="round">
+        <g class="alarm-icon">
           <path class="signal-arc s1" d="M-13-9 Q-6-13 0-11 Q6-13 13-9" />
           <path class="signal-arc s2" d="M-9-3 Q-4-6 0-4 Q4-6 9-3" />
           <path class="signal-arc s3" d="M-5 3 Q-2 1 0 2 Q2 1 5 3" />
@@ -206,6 +207,7 @@
             <path class="bell-left" d="M-6-16 Q-4-20 0-15" stroke-width="0.9" />
             <path class="bell-right" d="M6-16 Q4-20 0-15" stroke-width="0.9" />
           </g>
+        </g>
         </g>
         <text x="126" y="547" text-anchor="middle" :fill="labelColor" font-size="11" font-weight="500">通讯报警</text>
       </g>
@@ -321,13 +323,13 @@ const skylineOpacity = computed(() => isDark.value ? 0.12 : 0.18)
 }
 
 /* ===== 历史数据：射线闪烁 ===== */
-.weather-icon { animation: weather-sway 5s ease-in-out infinite; }
+.weather-icon { animation: weather-sway 5s ease-in-out infinite; transform-origin: center; }
 @keyframes weather-sway {
-  0%, 100% { transform: translate(480px, 366px) rotate(0deg); }
-  50%      { transform: translate(480px, 366px) rotate(4deg); }
+  0%, 100% { rotate: 0deg; }
+  50%      { rotate: 4deg; }
 }
 
-.sun-ray { animation: ray-pulse 2s ease-in-out infinite; transform-origin: 10px -4px; }
+.sun-ray { animation: ray-pulse 2s ease-in-out infinite; }
 .sun-ray:nth-child(3) { animation-delay: 0s; }
 .sun-ray:nth-child(4) { animation-delay: 0.4s; }
 .sun-ray:nth-child(5) { animation-delay: 0.8s; }
@@ -340,10 +342,10 @@ const skylineOpacity = computed(() => isDark.value ? 0.12 : 0.18)
 /* ===== 通讯报警：信号波 + 铃铛 ===== */
 .alarm-icon { animation: alarm-shake 3.5s ease-in-out infinite; }
 @keyframes alarm-shake {
-  0%, 88%, 100% { transform: translate(126px, 505px) rotate(0deg); }
-  90%           { transform: translate(126px, 505px) rotate(-10deg); }
-  94%           { transform: translate(126px, 505px) rotate(10deg); }
-  96%           { transform: translate(126px, 505px) rotate(-5deg); }
+  0%, 88%, 100% { transform: rotate(0deg); }
+  90%           { transform: rotate(-4deg); }
+  93%           { transform: rotate(4deg); }
+  96%           { transform: rotate(0deg); }
 }
 
 .signal-arc { animation: signal-wave 2s ease-in-out infinite; }

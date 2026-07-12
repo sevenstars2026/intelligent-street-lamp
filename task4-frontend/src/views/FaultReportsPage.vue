@@ -247,10 +247,9 @@ async function loadData() {
       page: currentPage.value,
       pageSize: pageSize.value,
     })
-    const data = res.data || {}
-    const list = data.reports || data.list || data || []
+    const list = res.reports || res.list || res.data?.reports || []
     reports.value = Array.isArray(list) ? list : []
-    const pi = data.pagination || {}
+    const pi = res.pagination || {}
     totalCount.value = pi.total ?? reports.value.length
     totalPages.value = pi.totalPages || Math.max(1, Math.ceil(totalCount.value / pageSize.value))
   } catch (e) {

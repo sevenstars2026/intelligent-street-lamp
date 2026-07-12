@@ -43,6 +43,12 @@ const routes = [
     meta: { title: '智能问答', roles: ['admin'] },
   },
   {
+    path: '/review',
+    name: 'Review',
+    component: () => import('@/views/ReviewPage.vue'),
+    meta: { title: '上报审核', roles: ['admin', 'municipal'] },
+  },
+  {
     path: '/',
     redirect: '/dashboard',
   },
