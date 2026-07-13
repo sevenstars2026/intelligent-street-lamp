@@ -24,7 +24,7 @@ export function useReport() {
     const { name, phone, lampId, description } = form.value
     if (!name || name.length < 2 || name.length > 20) return '姓名需2-20个字符'
     if (!/^1\d{10}$/.test(phone)) return '请输入正确的11位手机号'
-    if (!/^lamp_\d{3}$/.test(lampId)) return '路灯编号格式为 lamp_XXX'
+    if (!lampId) return '请选择故障路灯'
     if (!description || description.length < 10 || description.length > 200) return '故障描述需10-200字'
     return null
   }

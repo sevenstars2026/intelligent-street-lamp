@@ -11,6 +11,11 @@
               <span class="btn-text">查看路线</span>
               <span class="btn-sub">显示从当前路灯到此处的路径</span>
             </button>
+            <button class="sheet-btn navigate-btn" @click="$emit('navigate')">
+              <span class="btn-icon">🧭</span>
+              <span class="btn-text">导航到这里</span>
+              <span class="btn-sub">跳转高德地图，实时导航到此位置</span>
+            </button>
             <button class="sheet-btn detail-btn" @click="$emit('choose', 'detail')">
               <span class="btn-icon">📋</span>
               <span class="btn-text">{{ isEvent ? '活动详情' : '拍照点详情' }}</span>
@@ -32,7 +37,7 @@ const props = defineProps({
   item: { type: Object, default: () => ({}) },
   isEvent: Boolean,
 })
-defineEmits(['close', 'choose'])
+defineEmits(['close', 'choose', 'navigate'])
 </script>
 
 <style scoped>
@@ -56,6 +61,7 @@ defineEmits(['close', 'choose'])
 }
 .sheet-btn:active { background: #faf0e4; }
 .route-btn { border-color: rgba(240,160,80,0.3); }
+.navigate-btn { border-color: rgba(76,175,80,0.35); }
 .detail-btn { border-color: rgba(91,155,213,0.3); }
 .btn-icon { font-size: 20px; }
 .btn-text { font-size: 15px; font-weight: 600; color: var(--color-text); }

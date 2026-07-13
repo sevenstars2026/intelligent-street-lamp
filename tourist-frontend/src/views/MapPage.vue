@@ -31,7 +31,7 @@
 
     <!-- 操作选择面板 -->
     <ActionSheet :show="sheetShow" :item="sheetItem" :isEvent="sheetIsEvent"
-      @close="sheetShow = false" @choose="onSheetChoose" />
+      @close="sheetShow = false" @choose="onSheetChoose" @navigate="onNavigate" />
   </div>
 </template>
 
@@ -88,6 +88,17 @@ function onSheetChoose(action) {
 }
 
 function onSelectRoute(r) { router.push({ path: '/', query: { lamp: r.lampIds?.[0] } }) }
+
+function onNavigate() {
+  const item = sheetItem.value
+  const coords = sheetIsEvent.value ? EVENT_COORDS[item.id] : SPOT_COORDS[item.id]
+  if (!coords) return
+  const [lat, lng] = coords
+  const name = encodeURIComponent(item.name || '目标点')
+  const url = `https://uri.amap.com/navigation?to=${lng},${lat},${name}&mode=walk`
+  window.open(url, '_blank')
+  sheetShow.value = false
+}
 
 onMounted(async () => {
   await loadScenicData()
